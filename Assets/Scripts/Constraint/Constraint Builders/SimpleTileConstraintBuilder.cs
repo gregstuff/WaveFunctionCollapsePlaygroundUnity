@@ -3,13 +3,12 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-public class ConstraintBuilder : MonoBehaviour
+public class SimpleTileConstraintBuilder : ConstraintBuilder
 {
     [SerializeField] private Tile[] _tiles;
     [SerializeField] private Tile _defaultTile;
 
-    [ContextMenu("Generate Constraints")]
-    public void GenerateConstraints()
+    public override void GenerateConstraints()
     {
         if (_tiles == null || _tiles.Length == 0)
         {
