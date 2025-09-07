@@ -306,7 +306,7 @@ MonoBehaviour:
   tilemapResolver: {fileID: 633793561}
   constraintModel: {fileID: 11400000, guid: f0111e660b986e74ba4e093aa5f9a11f, type: 2}
   tileMap: {fileID: 2064930654}
-  dimensions: {x: 100, y: 100}
+  dimensions: {x: 200, y: 200}
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
@@ -511,7 +511,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TileSprites:
-  - {fileID: 0}
+  - {fileID: 21300000, guid: 80fa699f2e8dade418f17209395b4fec, type: 3}
+  - {fileID: 21300000, guid: 67d6bfa3cf1b9144fab8877607d68551, type: 3}
+  - {fileID: 21300000, guid: 5a0cad5dd1883a64281a6ff4d8403103, type: 3}
+  - {fileID: 21300000, guid: b125834003c7fed448c9966043f33bde, type: 3}
+  - {fileID: 21300000, guid: 85165ea538f4531409ac6ad782d38115, type: 3}
+  - {fileID: 21300000, guid: 8d01fb1f9661bb249837eeb3f7d7d50c, type: 3}
+  - {fileID: 21300000, guid: 34300415e770bb94dbe28a40ecce66a6, type: 3}
+  - {fileID: 21300000, guid: 1ebe207c38706c744aa5daa7b103f10d, type: 3}
+  - {fileID: 21300000, guid: 9548f4c4eb970fd4cb5484a1d0beb0a9, type: 3}
+  - {fileID: 21300000, guid: cf14aeaf52730434c8363173bd80457d, type: 3}
+  - {fileID: 21300000, guid: 6157613beb4a2ce47aef4862080ac562, type: 3}
 --- !u!1 &1605361693
 GameObject:
   m_ObjectHideFlags: 0
@@ -634,6 +644,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _tiles:
+  - {fileID: 11400000, guid: 0bee33f2fefa5d146b74de5f8584475f, type: 2}
   - {fileID: 11400000, guid: 5de7911603264af4990ad6872b2c4e66, type: 2}
   - {fileID: 11400000, guid: 858ed362b27be7043b925f2ae260897f, type: 2}
   - {fileID: 11400000, guid: 1bfeb67e4a7801a4eaef4ce1ff294113, type: 2}
@@ -661,15 +672,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 3fd28c91bac5b4c4fb9fba080b5d44f4, type: 2}
   - {fileID: 11400000, guid: 0a834bbfa180d404fa78d12e0d1a45c7, type: 2}
   - {fileID: 11400000, guid: 4b6cbd7da67f817449d3552a5a17c0cd, type: 2}
-  - {fileID: 11400000, guid: 2e5987dce586d994c8432aa0027d1204, type: 2}
-  - {fileID: 11400000, guid: 8e19de249ed6678439b30fab6603bc9c, type: 2}
-  - {fileID: 11400000, guid: 62014adb7bc63c742b86723f4e6c1b58, type: 2}
-  - {fileID: 11400000, guid: 4e36981f7f232614589ab6d173011cb2, type: 2}
-  - {fileID: 11400000, guid: 0a53fbe6d0671a644bacfe73407c0124, type: 2}
-  - {fileID: 11400000, guid: fd36c4ac29356594a89ceaa5d6b3384b, type: 2}
   - {fileID: 11400000, guid: 4a265b92fc6fbea4cbf0ee6c74edf4c1, type: 2}
   - {fileID: 11400000, guid: d39190c812a0a8246a14f9294dbb5aac, type: 2}
-  - {fileID: 11400000, guid: d3899344013486b40b55e6544b59797c, type: 2}
   _defaultTile: {fileID: 11400000, guid: d3899344013486b40b55e6544b59797c, type: 2}
 --- !u!1 &2064930651
 GameObject:

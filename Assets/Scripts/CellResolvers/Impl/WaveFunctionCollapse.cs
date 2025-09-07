@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 public class WaveFunctionCollapse : ITilemapResolver
 {
@@ -80,7 +81,7 @@ public class WaveFunctionCollapse : ITilemapResolver
 
     private IEnumerator TilemapResolutionRoutine()
     {
-        List<Cell> candidates = new();
+        Queue<Cell> candidates = new();
         while (true)
         {
             Cell target = null;
@@ -100,7 +101,7 @@ public class WaveFunctionCollapse : ITilemapResolver
 
             if (target == null)
             {
-                Debug.LogError("WFC contradiction: no valid target!");
+                // no valid target - may just have finished
                 yield break;
             }
 
@@ -110,34 +111,44 @@ public class WaveFunctionCollapse : ITilemapResolver
 
             EnqueueNeighbors(target, candidates);
 
-            foreach (var cand in candidates)
+            while (candidates.Count > 0)
             {
-                var oldE = Mathf.Clamp(cand.PossibleTiles.Count, 0, _maxEntropy);
-                ReduceByNeighbors(cand);
-                var newE = Mathf.Clamp(cand.PossibleTiles.Count, 0, _maxEntropy);
+                var cand = candidates.Dequeue();
 
-                if (newE != oldE)
+                var (oldEntropy, newEntropy) = ReduceByNeighbors(cand);
+
+                // if the entropy has changed, then enqueue neighbours to see if their entropy will change as well
+                // entropy oldEntropy propagate until entropy is 0
+                if (newEntropy != oldEntropy)
                 {
-                    _buckets[oldE].Remove(cand);
-                    _buckets[newE].Add(cand);
+                    _buckets[oldEntropy].Remove(cand);
+                    _buckets[newEntropy].Add(cand);
+                    EnqueueNeighbors(cand, candidates);
                 }
 
-                if (newE == 0)
+                if (newEntropy == 0)
                 {
-                    Debug.LogError($"WFC contradiction at {cand.Pos}.");
                     _buckets[0].Remove(cand);
-                    //yield break;
+                    HandleContradiction($"WFC contradiction at {cand.Pos}.");
                 }
 
             }
 
-            yield return new WaitForSeconds(cellResolutionDelay);
+            yield return null;
         }
+    }
+
+    private void HandleContradiction(string contradiction)
+    {
+        if (_constraintModel.IgnoreContradictions) return;
+
+        Debug.LogError(contradiction);
+
+        throw new UnfinishableMapException();
     }
 
     private void CollapseCell(Cell c)
     {
-        Debug.Log($"collapsing {c.Pos}");
         int idx = UnityEngine.Random.Range(0, c.PossibleTiles.Count);
         var chosen = c.PossibleTiles.ElementAt(idx);
         c.Collapse(chosen);
@@ -145,39 +156,65 @@ public class WaveFunctionCollapse : ITilemapResolver
         _tileBaseChangedCallback?.Invoke(c);
     }
 
-    private void EnqueueNeighbors(Cell c, List<Cell> candidates)
+    private void EnqueueNeighbors(Cell c, Queue<Cell> candidates)
     {
         var neighboursMap = neighboursForPos[c.Pos];
-        Debug.Log($"Candidates count before: {candidates.Count}");
         foreach (var kvp in neighboursMap)
         {
-            var nb = kvp.Value;
-            if (nb != null && !nb.Collapsed) candidates.Add(nb);
+            var neighbour = kvp.Value;
+            if (neighbour != null && !neighbour.Collapsed && !candidates.Contains(neighbour)) candidates.Enqueue(neighbour);
         }
-        Debug.Log($"Candidates count after: {candidates.Count}");
     }
 
-    private bool ReduceByNeighbors(Cell cell)
+    private (int, int) ReduceByNeighbors(Cell cell)
     {
-        bool changed = false;
-
-        int before = cell.PossibleTiles.Count;
-
-        foreach (var (dirToNb, nb) in neighboursForPos[cell.Pos])
+        void HandleCollapsedNeighbour(Direction neighborDirToMe, Cell neighbour)
         {
-            if (nb == null || !nb.Collapsed) continue;
-
-            var myDirToNeighbor = dirToNb;
-            var neighborDirToMe = dirToNb.GetOpposite();
-
-            var neighborDict = _constraintModel.GetDirectionTilesForTile(nb.Tile);
+            var neighborDict = _constraintModel.GetDirectionTilesForTile(neighbour.Tile);
             var allowed = neighborDict[neighborDirToMe];
 
             cell.PossibleTiles.RemoveWhere(t => !allowed.Contains(t));
         }
 
-        if (cell.PossibleTiles.Count != before) changed = true;
-        return changed;
+        void HandleUncollapsedNeighbour(Direction myDirectionToNeighbour, Cell neighbour)
+        {
+            TileBase[] toRemove = new TileBase[cell.PossibleTiles.Count];
+            int ptr = 0;
+
+            // look at potential neighbour states
+            // for each of my potential states, can my potential state exist for the given potential states of my neighbour?
+            foreach (var possibleTile in cell.PossibleTiles)
+            {
+                var potentialMatches = _constraintModel.GetDirectionTilesForTile(possibleTile)[myDirectionToNeighbour];
+                var canHappen = potentialMatches.Any(potentialMatch => neighbour.PossibleTiles.Contains(potentialMatch));
+                if (!canHappen) toRemove[ptr++] = possibleTile;
+            }
+
+            // if we found any tiles that aren't possible anymore, get rid of them
+            for (int i = 0; i < toRemove.Length; ++i)
+            {
+                if (toRemove[i] == null) break;
+                cell.PossibleTiles.Remove(toRemove[i]);
+            }
+
+        }
+
+        int before = cell.PossibleTiles.Count;
+
+        foreach (var (dirToNeighbour, neighbour) in neighboursForPos[cell.Pos])
+        {
+            if (neighbour == null) continue;
+
+            var myDirToNeighbor = dirToNeighbour;
+            var neighborDirToMe = dirToNeighbour.GetOpposite();
+
+            if (neighbour.Collapsed) HandleCollapsedNeighbour(neighborDirToMe, neighbour);
+            else HandleUncollapsedNeighbour(myDirToNeighbor, neighbour);
+        }
+
+        int after = cell.PossibleTiles.Count;
+
+        return (before, after);
     }
 
 }

@@ -48,7 +48,7 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!213 &4963749897552499772
+--- !u!213 &6476527650402192744
 Sprite:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

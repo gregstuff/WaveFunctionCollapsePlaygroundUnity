@@ -5,8 +5,13 @@ using UnityEngine.Tilemaps;
 
 public class ConstraintModelSO : ScriptableObject
 {
+    [Header("WFC Controls")]
+    [SerializeField] public bool IgnoreContradictions;
+
+    [Header("Tile Data")]
     [SerializeField] public Constraint[] Constraints;
     [SerializeField] public TileBase DefaultTile;
+
 
     private Dictionary<TileBase, Dictionary<Direction, List<TileBase>>> _tilesToDirectionsToTiles;
 
