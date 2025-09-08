@@ -8,6 +8,7 @@ public class SimpleTileConstraintBuilder : ConstraintBuilder
     [SerializeField] private Tile[] _tiles;
     [SerializeField] private Tile _defaultTile;
 
+    [ContextMenu("Generate Constraints")]
     public override void GenerateConstraints()
     {
         if (_tiles == null || _tiles.Length == 0)

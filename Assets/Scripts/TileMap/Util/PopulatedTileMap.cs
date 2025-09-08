@@ -12,13 +12,13 @@ public class PopulatedTileMap : MonoBehaviour
         tilemap.CompressBounds();
         var cellBounds = tilemap.cellBounds;
         var flatTileArray = tilemap.GetTilesBlock(cellBounds);
-        var tiles = new TileBase[cellBounds.y, cellBounds.x];
+        var tiles = new TileBase[cellBounds.size.y, cellBounds.size.x];
 
         int i = 0;
 
-        for (int y = 0; y < cellBounds.y; ++y)
+        for (int y = 0; y < cellBounds.size.y; ++y)
         {
-            for (int x = 0; x < cellBounds.x; ++x)
+            for (int x = 0; x < cellBounds.size.x; ++x)
             {
                 tiles[y, x] = flatTileArray[i++];
             }
