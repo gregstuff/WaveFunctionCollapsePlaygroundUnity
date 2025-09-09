@@ -5,7 +5,7 @@ using UnityEngine.Tilemaps;
 public class TileMapController : MonoBehaviour
 {
     [Header("Object References")]
-    [SerializeField] private ITilemapResolver tilemapResolver;
+    [SerializeField] private TilemapResolver tilemapResolver;
     [SerializeField] private ConstraintModelSO constraintModel;
 
     [Header("Tilemap settings")]

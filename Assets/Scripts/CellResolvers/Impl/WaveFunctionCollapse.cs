@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-public class WaveFunctionCollapse : ITilemapResolver
+public class WaveFunctionCollapse : TilemapResolver
 {
     private ConstraintModelSO _constraintModel;
     private Action<Vector2Int, TileBase> _tileBaseChangedCallback;
