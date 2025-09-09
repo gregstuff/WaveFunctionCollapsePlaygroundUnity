@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 public abstract class ITilemapResolver : MonoBehaviour
 {
     public abstract void ResolveTilemap(ConstraintModelSO constraintModel,
-        Dictionary<Vector2Int, Cell> cells,
-        Action<Cell> TileBaseChangedCallback);
+        Action<Vector2Int, TileBase> TileBaseChangedCallback);
 }
+

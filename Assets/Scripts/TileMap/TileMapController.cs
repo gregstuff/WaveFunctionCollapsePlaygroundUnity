@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -14,8 +12,6 @@ public class TileMapController : MonoBehaviour
     [SerializeField] private Tilemap tileMap;
     [SerializeField] private Vector2Int dimensions = new Vector2Int(100, 100);
 
-    private Dictionary<Vector2Int, Cell> cells;
-
     private void Start()
     {
         if (constraintModel == null
@@ -28,27 +24,25 @@ public class TileMapController : MonoBehaviour
 
         // init to first tile
         InitializeGridCells();
-        tilemapResolver.ResolveTilemap(constraintModel, cells, OnCellChanged);
+        constraintModel.Init(dimensions);
+        tilemapResolver.ResolveTilemap(constraintModel, OnCellChanged);
     }
 
-    public void OnCellChanged(Cell cell)
+    public void OnCellChanged(Vector2Int pos, TileBase tile)
     {
-        tileMap.SetTile(new Vector3Int(cell.Pos.x, cell.Pos.y), cell.Tile);
+        tileMap.SetTile((Vector3Int)pos, tile);
     }
 
     private void InitializeGridCells()
     {
-        cells = new Dictionary<Vector2Int, Cell>();
         var defaultTile = constraintModel.DefaultTile;
-        var possibleTiles = constraintModel.Constraints.Select(constraint => constraint.Tile);
 
         for (int y = 0; y < dimensions.y; ++y)
         {
             for (int x = 0; x < dimensions.x; ++x)
             {
                 var pos = new Vector3Int(x, y);
-                tileMap.SetTile(new Vector3Int(x, y), defaultTile);
-                cells.Add((Vector2Int)pos, new Cell((Vector2Int)pos, defaultTile, possibleTiles));
+                tileMap.SetTile(new Vector3Int(pos.x, pos.y), defaultTile);
             }
         }
     }

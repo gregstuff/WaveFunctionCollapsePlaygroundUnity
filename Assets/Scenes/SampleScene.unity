@@ -843,7 +843,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   populatedTileMaps:
   - {fileID: 2990731219297741141, guid: 7f8ff09634b8f78498134552e0f52ae1, type: 3}
-  areaWidth: 3
+  areaWidth: 2
 --- !u!1 &2138768400
 GameObject:
   m_ObjectHideFlags: 0

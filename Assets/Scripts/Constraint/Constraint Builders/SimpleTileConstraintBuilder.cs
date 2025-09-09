@@ -21,7 +21,7 @@ public class SimpleTileConstraintBuilder : ConstraintBuilder
 
         var compatible = BuildCompatibility(tileEdges);
 
-        var constraintModelSO = ScriptableObject.CreateInstance<ConstraintModelSO>();
+        var constraintModelSO = ScriptableObject.CreateInstance<SimpleTileConstraintModelSO>();
         constraintModelSO.BuildConstraints(compatible, _defaultTile);
 
         persistModel(constraintModelSO);
