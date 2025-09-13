@@ -43,6 +43,7 @@ public class WaveFunctionCollapse : TilemapResolver
             while (candidates.Count > 0)
             {
                 var cand = candidates.Dequeue();
+                cand.InQueue = false;
 
                 var entropy = _constraintModel.ReduceByNeighbors(cand);
 

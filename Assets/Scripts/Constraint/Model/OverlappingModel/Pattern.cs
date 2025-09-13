@@ -6,9 +6,9 @@ using UnityEngine.Tilemaps;
 [Serializable]
 public sealed class Pattern : ISerializationCallbackReceiver
 {
-    [SerializeField] private int width;
-    [SerializeField] private int height;
-    [SerializeField] private TileBase[] tiles;
+    [SerializeField] private int width;   // X dimension (columns)
+    [SerializeField] private int height;  // Y dimension (rows)
+    [SerializeField] private TileBase[] tiles; // row-major: idx = y * width + x
 
     [NonSerialized] private IReadOnlyList<TileBase> tilesReadonly;
     [NonSerialized] private bool hashed;
@@ -16,7 +16,15 @@ public sealed class Pattern : ISerializationCallbackReceiver
 
     public int Width => width;
     public int Height => height;
+
+    // Read-only list view over the flat array
     public IReadOnlyList<TileBase> Tiles => tilesReadonly ?? tiles;
+
+    // 2D view with (y, x) order
+    public TileBase this[int y, int x] => tiles[y * width + x];
+
+    public bool InBounds(int y, int x) =>
+        (uint)y < (uint)height && (uint)x < (uint)width;
 
     public Pattern(int width, int height, TileBase[] tiles)
     {
@@ -35,9 +43,12 @@ public sealed class Pattern : ISerializationCallbackReceiver
         if (ReferenceEquals(this, obj)) return true;
         if (obj is not Pattern other) return false;
         if (width != other.width || height != other.height) return false;
+
         var a = tiles; var b = other.tiles;
-        if (a.Length != b.Length) return false;
-        for (int i = 0; i < a.Length; i++) if (!ReferenceEquals(a[i], b[i])) return false;
+        if (a == null || b == null || a.Length != b.Length) return false;
+        for (int i = 0; i < a.Length; i++)
+            if (!ReferenceEquals(a[i], b[i])) return false;
+
         return true;
     }
 
@@ -52,26 +63,22 @@ public sealed class Pattern : ISerializationCallbackReceiver
     private int ComputeHash()
     {
         var hc = new HashCode();
-        hc.Add(width); hc.Add(height);
-        foreach (var t in tiles) hc.Add(t);
+        hc.Add(width);
+        hc.Add(height);
+        if (tiles != null)
+            for (int i = 0; i < tiles.Length; i++) hc.Add(tiles[i]);
         return hc.ToHashCode();
     }
 
-    public void OnAfterDeserialize()
-    {
-        Seal();
-    }
+    // Serialization hooks
+    public void OnAfterDeserialize() => Seal();
+    public void OnBeforeSerialize() { }
 
     private void Seal()
     {
+        if (tiles == null) tiles = Array.Empty<TileBase>();
         tilesReadonly = Array.AsReadOnly(tiles);
-
         cachedHash = ComputeHash();
         hashed = true;
-    }
-
-    public void OnBeforeSerialize()
-    {
-
     }
 }

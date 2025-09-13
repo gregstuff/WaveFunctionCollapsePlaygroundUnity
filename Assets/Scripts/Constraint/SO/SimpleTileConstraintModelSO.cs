@@ -5,6 +5,10 @@ using UnityEngine.Tilemaps;
 
 public class SimpleTileConstraintModelSO : ConstraintModelSO
 {
+
+    [Header("Tile Data")]
+    [SerializeField] public Constraint[] Constraints;
+
     private Dictionary<TileBase, Dictionary<Direction, List<TileBase>>> _tilesToDirectionsToTiles;
 
     #region WFCData

@@ -8,8 +8,7 @@ public abstract class ConstraintModelSO : ScriptableObject
     [Header("WFC Controls")]
     [SerializeField] public bool IgnoreContradictions;
 
-    [Header("Tile Data")]
-    [SerializeField] public Constraint[] Constraints;
+    [Header("Tiles")]
     [SerializeField] public TileBase DefaultTile;
 
     public abstract void Init(Vector2Int dimensions);

@@ -14,9 +14,7 @@ public class TileMapController : MonoBehaviour
 
     private void Start()
     {
-        if (constraintModel == null
-            || constraintModel.Constraints == null
-            || constraintModel.Constraints.Length == 0)
+        if (constraintModel == null)
         {
             EditorUtility.DisplayDialog("Error", "You need to select a valid Constraints Model", "Okay");
             return;

@@ -41,48 +41,32 @@ public class OverlapModelTileMapConstraintBuilder : ConstraintBuilder
         int width = tiles.GetLength(1);
 
         for (int y = 0; y <= height - areaWidth; ++y)
-        {
             for (int x = 0; x <= width - areaWidth; ++x)
             {
-                var flatPattern = ExtractFlatPattern(y, x, height, width, tiles);
+                var flat = ExtractFlatPattern(y, x, height, width, tiles);
+                var cellPattern = new Pattern(areaWidth, areaWidth, flat);
 
-                Pattern cellPattern = new Pattern(areaWidth, areaWidth, flatPattern);
-                Pattern eastPattern = null;
-                Pattern westPattern = null;
-                Pattern southPattern = null;
-                Pattern northPattern = null;
+                Pattern eastPattern = (x + 1 <= width - areaWidth)
+                    ? new Pattern(areaWidth, areaWidth, ExtractFlatPattern(y, x + 1, height, width, tiles))
+                    : null;
 
-                if (x + 1 <= width - areaWidth)
-                {
-                    var eastFlatPattern = ExtractFlatPattern(y, x + 1, height, width, tiles);
-                    eastPattern = new Pattern(areaWidth, areaWidth, eastFlatPattern);
-                }
+                Pattern westPattern = (x - 1 >= 0)
+                    ? new Pattern(areaWidth, areaWidth, ExtractFlatPattern(y, x - 1, height, width, tiles))
+                    : null;
 
-                if (x - 1 >= 0)
-                {
-                    var westFlatPattern = ExtractFlatPattern(y, x - 1, height, width, tiles);
-                    westPattern = new Pattern(areaWidth, areaWidth, westFlatPattern);
-                }
+                Pattern northPattern = (y + 1 <= height - areaWidth)
+                    ? new Pattern(areaWidth, areaWidth, ExtractFlatPattern(y + 1, x, height, width, tiles))
+                    : null;
 
-                if (y + 1 <= height - areaWidth)
-                {
-                    var southFlatPattern = ExtractFlatPattern(y + 1, x, height, width, tiles);
-                    southPattern = new Pattern(areaWidth, areaWidth, southFlatPattern);
-                }
-
-                if (y - 1 >= 0)
-                {
-                    var northFlatPattern = ExtractFlatPattern(y - 1, x, height, width, tiles);
-                    northPattern = new Pattern(areaWidth, areaWidth, northFlatPattern);
-                }
+                Pattern southPattern = (y - 1 >= 0)
+                    ? new Pattern(areaWidth, areaWidth, ExtractFlatPattern(y - 1, x, height, width, tiles))
+                    : null;
 
                 RecordPatterns(cellPattern, eastPattern, westPattern, southPattern, northPattern);
                 RecordPatternAdjacencies(cellPattern, eastPattern, westPattern, southPattern, northPattern);
-
             }
-        }
-
     }
+
 
     private void RecordPatternAdjacencies(Pattern curr, Pattern east, Pattern west, Pattern south, Pattern north)
     {
