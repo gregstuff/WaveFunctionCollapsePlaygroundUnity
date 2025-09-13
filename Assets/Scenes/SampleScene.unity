@@ -400,9 +400,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tilemapResolver: {fileID: 633793561}
-  constraintModel: {fileID: 0}
+  constraintModel: {fileID: 11400000, guid: 3ac9f95ba9157e54d8d9e800b45b840b, type: 2}
   tileMap: {fileID: 1368775131}
-  dimensions: {x: 100, y: 100}
+  dimensions: {x: 40, y: 40}
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
@@ -1137,7 +1137,7 @@ MonoBehaviour:
   populatedTileMaps:
   - {fileID: 2990731219297741141, guid: 7f8ff09634b8f78498134552e0f52ae1, type: 3}
   - {fileID: 2990731219297741141, guid: 04bec30df81431d40be8387e43be0d4e, type: 3}
-  areaWidth: 2
+  areaWidth: 3
 --- !u!1 &2138768400
 GameObject:
   m_ObjectHideFlags: 0
