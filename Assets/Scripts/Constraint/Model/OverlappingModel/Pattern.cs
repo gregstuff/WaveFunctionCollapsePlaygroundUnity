@@ -6,9 +6,9 @@ using UnityEngine.Tilemaps;
 [Serializable]
 public sealed class Pattern : ISerializationCallbackReceiver
 {
-    [SerializeField] private int width;   // X dimension (columns)
-    [SerializeField] private int height;  // Y dimension (rows)
-    [SerializeField] private TileBase[] tiles; // row-major: idx = y * width + x
+    [SerializeField] private int width;
+    [SerializeField] private int height;
+    [SerializeField] private TileBase[] tiles;
 
     [NonSerialized] private IReadOnlyList<TileBase> tilesReadonly;
     [NonSerialized] private bool hashed;

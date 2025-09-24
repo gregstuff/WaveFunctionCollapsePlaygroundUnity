@@ -1,0 +1,3 @@
+- Cleanup existing codebase
+- write tests for correct propagation
+- confirm implementation against reference implementation

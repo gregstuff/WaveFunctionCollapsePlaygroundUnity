@@ -11,14 +11,23 @@ public enum Direction
 
 public static class DirectionExtensions
 {
+
+    public static readonly Direction[] Cardinal =
+    {
+        Direction.NORTH,
+        Direction.SOUTH,
+        Direction.EAST,
+        Direction.WEST
+    };
+
     public static Vector2Int ToVector(this Direction dir)
     {
         return dir switch
         {
-            Direction.NORTH => Vector2Int.up,
-            Direction.SOUTH => Vector2Int.down,
-            Direction.WEST => Vector2Int.left,
-            Direction.EAST => Vector2Int.right,
+            Direction.NORTH => new Vector2Int(0, -1),
+            Direction.SOUTH => new Vector2Int(0, 1),
+            Direction.WEST => new Vector2Int(1, 0),
+            Direction.EAST => new Vector2Int(-1, 0),
             _ => Vector2Int.zero
         };
     }
