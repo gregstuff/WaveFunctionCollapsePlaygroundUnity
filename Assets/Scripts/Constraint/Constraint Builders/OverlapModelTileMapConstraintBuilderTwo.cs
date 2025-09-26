@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -34,6 +35,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         ExportOverlapModelAsset();
     }
 
+    // run a function over a N * N pattern
     private TileBase[] Pattern(Func<int, int, TileBase> f, int N)
     {
         TileBase[] tiles = new TileBase[N * N];
@@ -41,7 +43,25 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         return tiles;
     }
 
+    /* 
+     * rotate pattern clockwise
+     *
+     * 1 2 3    7 4 1
+     * 4 5 6 -> 8 5 2
+     * 7 8 9    9 6 3
+     *
+     */
     private TileBase[] Rotate(TileBase[] p, int N) => Pattern((x, y) => p[N - 1 - y + x * N], N);
+
+
+    /*
+     * reflect pattern
+     * 
+     * 1 2 3    3 2 1
+     * 4 5 6 -> 6 5 4
+     * 7 8 9    9 8 7
+     * 
+     */
     private TileBase[] Reflect(TileBase[] p, int N) => Pattern((x, y) => p[N - 1 - x + y * N], N);
 
     private bool Agrees(TileBase[] p1, TileBase[] p2, Vector2Int dir, int N)
@@ -59,11 +79,10 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
     {
         unchecked
         {
-            ulong h = 1469598103934665603UL; // FNV-1a 64-bit
+            ulong h = 1469598103934665603UL;
             for (int i = 0; i < p.Length; i++)
             {
                 var tile = p[i];
-                // Prefer GUID; fallback to name if needed
                 string guid = null;
 #if UNITY_EDITOR
                 var path = AssetDatabase.GetAssetPath(tile);
@@ -71,13 +90,27 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
 #endif
                 var key = guid ?? tile?.name ?? "<null>";
                 foreach (char c in key) { h ^= (byte)c; h *= 1099511628211UL; }
-                // separator to avoid “ab|c” == “a|bc” when concatenating strings across cells
                 h ^= 0xFF; h *= 1099511628211UL;
             }
             return (long)h;
         }
     }
 
+    /*
+     * 
+     * Iterate over tilemap - extract patterns of N * N size
+     * 
+     * For each pattern, get the rotations and reflections as well
+     * 
+     * Tilemap is sampled periodically (wrap around)
+     * 
+     * Get pattern weights (occurences)
+     * 
+     * Store references to compatible patterns (including rotations/reflections of observed patterns)
+     * 
+     * Pattern compatibility and weight information is stored against pattern index in the order in which the patterns are observed
+     * 
+     */
     private void ExtractPatternData(PopulatedTileMap tilemap)
     {
         var (height, width, tiles, uniqueTiles) = tilemap.GetFlatTiles();
@@ -107,7 +140,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
                     if (patternIndices.TryGetValue(h, out int index)) localWeights[index] = localWeights[index] + 1;
                     else
                     {
-                        patternIndices.Add(h, localWeights.Count);
+                        patternIndices.Add(h, localPatterns.Count);
                         localWeights.Add(1.0);
                         localPatterns.Add(p);
                     }
@@ -137,6 +170,13 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         MergePatternData(localPatterns, localWeights, localPropagator);
     }
 
+    /*
+     * 
+     * Different tilemaps may have different indices for the same pattern
+     * therefore, we need to map the indices from one to the other and merge
+     * patterns, compatibilities and weights
+     * 
+     */
     private void MergePatternData(List<TileBase[]> newPatterns,
         List<double> newWeights, Dictionary<Direction, Dictionary<int, List<int>>> newPropagator)
     {
@@ -156,7 +196,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
             int existingIndex = -1;
             for (int j = 0; j < _patterns.Count; ++j)
             {
-                if (Hash(_patterns[j]) == hash)
+                if (Hash(_patterns[j]) == hash && _patterns[j].SequenceEqual(newPatterns[i]))
                 {
                     existingIndex = j;
                     break;
@@ -188,11 +228,11 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
             foreach (var kvp in newPropagator[dir])
             {
                 int sourcePattern = kvp.Key;
-                if (!newToMergedIndexMap.TryGetValue(sourcePattern, out int mergedSourceIndex))
-                    continue;
 
-                if (!_propagator[dir].ContainsKey(mergedSourceIndex))
-                    _propagator[dir][mergedSourceIndex] = new List<int>();
+                // should never happen
+                if (!newToMergedIndexMap.TryGetValue(sourcePattern, out int mergedSourceIndex)) throw new Exception("Umapped pattern index!");
+
+                if (!_propagator[dir].ContainsKey(mergedSourceIndex)) _propagator[dir][mergedSourceIndex] = new List<int>();
 
                 var mergedCompatibleList = _propagator[dir][mergedSourceIndex];
 
@@ -200,14 +240,18 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
                 {
                     if (newToMergedIndexMap.TryGetValue(targetPattern, out int mergedTargetIndex))
                     {
-                        if (!mergedCompatibleList.Contains(mergedTargetIndex))
-                            mergedCompatibleList.Add(mergedTargetIndex);
+                        if (!mergedCompatibleList.Contains(mergedTargetIndex)) mergedCompatibleList.Add(mergedTargetIndex);
                     }
                 }
             }
         }
     }
 
+    /*
+     * 
+     * Create a scriptable object storing all observed patterns, pattern indices, weights and compatibilities
+     * 
+     */
     private void ExportOverlapModelAsset()
     {
         var so = ScriptableObject.CreateInstance<OverlappingModelTileModelSO>();
@@ -219,7 +263,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
             so.patterns.Add(new OverlappingModelTileModelSO.PatternData
             {
                 patternId = i,
-                tiles = new List<TileBase>(_patterns[i]),
+                tilePattern = _patterns[i],
                 weight = _weights[i]
             });
         }

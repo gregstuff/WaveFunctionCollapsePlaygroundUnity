@@ -56,7 +56,7 @@ public class WaveFunctionCollapse : TilemapResolver
 
                 if (entropy.NoEntropy())
                 {
-                    HandleContradiction($"WFC contradiction at {cand.Pos}.");
+                    HandleContradiction($"WFC contradiction.");
                 }
 
             }
@@ -76,7 +76,7 @@ public class WaveFunctionCollapse : TilemapResolver
 
     private void CollapseCell(Cell c)
     {
-        var selectedTile = _constraintModel.CollapseCell(c.Pos);
+        var selectedTile = _constraintModel.CollapseCell(c);
         _tileBaseChangedCallback?.Invoke(c.Pos, selectedTile);
     }
 
