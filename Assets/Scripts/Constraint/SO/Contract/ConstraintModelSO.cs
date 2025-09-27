@@ -12,7 +12,7 @@ public abstract class ConstraintModelSO : ScriptableObject
     [SerializeField] public TileBase DefaultTile;
 
     public abstract void Init(Vector2Int dimensions);
-    public abstract TileBase CollapseCell(Cell cell);
+    public abstract CollapseUpdate CollapseCell(Cell cell);
     public abstract Cell GetNext();
     public abstract void EnqueueNeighbours(Cell cell, Queue<Cell> candidates);
     public abstract EntropyResult ReduceByNeighbors(Cell cell);

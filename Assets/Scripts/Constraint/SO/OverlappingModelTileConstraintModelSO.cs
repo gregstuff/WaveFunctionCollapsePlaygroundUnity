@@ -7,11 +7,10 @@ using UnityEngine.Tilemaps;
 [CreateAssetMenu(menuName = "ProcGen/WFC/Overlap Model")]
 public class OverlappingModelTileModelSO : ConstraintModelSO
 {
-    [Header("Model Data (input)")]
-    [SerializeField] public int N;
-    [SerializeField] public int patternSize;
-    [SerializeField] public List<PatternData> patterns;
-    [SerializeField] public List<PatternAdjacency> adjacencies;
+    [HideInInspector][SerializeField] public int N;
+    [HideInInspector][SerializeField] public int patternSize;
+    [HideInInspector][SerializeField] public List<PatternData> patterns;
+    [HideInInspector][SerializeField] public List<PatternAdjacency> adjacencies;
 
     [Header("Performance / Quality")]
     [SerializeField] private int minPatternFrequency = 1;
@@ -24,22 +23,6 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
     private Dictionary<int, HashSet<Vector2Int>> _entropyToPositions;
     private Dictionary<Vector2Int, Cell> _positionsToCells;
     private System.Random _random;
-
-    [Serializable]
-    public class PatternData
-    {
-        public int patternId;
-        public TileBase[] tilePattern;
-        public double weight;
-    }
-
-    [Serializable]
-    public class PatternAdjacency
-    {
-        public int sourcePatternId;
-        public Direction direction;
-        public List<int> compatiblePatternIds = new List<int>();
-    }
 
     public OverlappingModelTileModelSO()
     {
@@ -75,7 +58,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
             // initially, all cells start with all possibilities
             if (i == patterns.Count) items = new HashSet<Vector2Int>(_cellPositionAvailablePatterns.Keys.ToList());
-            else _entropyToPositions[i] = new HashSet<Vector2Int>();
+            else items = new HashSet<Vector2Int>();
 
             _entropyToPositions[i] = items;
         }
@@ -105,7 +88,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
      * Resolve selected pattern based on available patterns and weights for cell
      * 
      */
-    public override TileBase CollapseCell(Cell cell)
+    public override CollapseUpdate CollapseCell(Cell cell)
     {
         var pos = cell.Pos;
         var availablePatterns = _cellPositionAvailablePatterns[pos];
@@ -123,7 +106,11 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         for (int i = 0; i < patternCount; ++i)
         {
             curr += availablePatterns[i].weight;
-            if (curr >= randomSelection) selectedPattern = availablePatterns[i];
+            if (curr >= randomSelection)
+            {
+                selectedPattern = availablePatterns[i];
+                break;
+            }
         }
 
         // set selected pattern for this cell..
@@ -136,21 +123,26 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         //we don't need a reference here anymore...
         _entropyToPositions[patternCount].Remove(pos);
 
-        //set this cell to the top left corner
-        return selectedPattern.tilePattern[0];
+
+        return new CollapseUpdate
+        {
+            Cell = cell.Pos,
+            N = N,
+            PatternId = selectedPattern.patternId,
+            Tiles = selectedPattern.tilePattern
+        };
     }
 
     public override void EnqueueNeighbours(Cell cell, Queue<Cell> candidates)
     {
         foreach (var dir in DirectionExtensions.Cardinal)
         {
-            var vec = dir.ToVector();
+            var vec = dir.ToGridVector();
             var neighbourPos = vec + cell.Pos;
-            var periodicPos = new Vector2Int(neighbourPos.x % _width, neighbourPos.y % _height);
 
-            var neighbour = _positionsToCells[periodicPos];
-
-            if (neighbour.InQueue || neighbour.Collapsed) continue;
+            if (!_positionsToCells.TryGetValue(neighbourPos, out var neighbour)
+                || neighbour.InQueue
+                || neighbour.Collapsed) continue;
 
             candidates.Enqueue(neighbour);
             neighbour.InQueue = true;
@@ -221,11 +213,10 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
         foreach (var dir in DirectionExtensions.Cardinal)
         {
-            var vec = dir.ToVector();
+            var vec = dir.ToGridVector();
             var neighbourPos = vec + cell.Pos;
-            var periodicPos = new Vector2Int(neighbourPos.x % _width, neighbourPos.y % _height);
 
-            var neighbour = _positionsToCells[periodicPos];
+            if (!_positionsToCells.TryGetValue(neighbourPos, out var neighbour)) continue;
 
             if (neighbour.Collapsed) HandleCollapsedNeighbour(dir, neighbour);
             else HandleUncollapsedNeighbour(dir, neighbour);
@@ -233,10 +224,16 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
         var finishingEntropy = _cellPositionAvailablePatterns[cell.Pos].Count;
 
-        // update entropy buckets...
-        _entropyToPositions[startingEntropy].Remove(cell.Pos);
-        _entropyToPositions[finishingEntropy].Add(cell.Pos);
+        Debug.Log($"check for ${cell.Pos}");
+        Debug.Log($"starting entropy: {startingEntropy}, finishing entropy: {finishingEntropy}");
 
-        return null;
+        // update entropy buckets...
+
+        _entropyToPositions[startingEntropy].Remove(cell.Pos);
+
+        if (finishingEntropy > 0)
+            _entropyToPositions[finishingEntropy].Add(cell.Pos);
+
+        return new EntropyResult(startingEntropy, finishingEntropy);
     }
 }

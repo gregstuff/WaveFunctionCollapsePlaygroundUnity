@@ -26,9 +26,15 @@ public class TileMapController : MonoBehaviour
         tilemapResolver.ResolveTilemap(constraintModel, OnCellChanged);
     }
 
-    public void OnCellChanged(Vector2Int pos, TileBase tile)
+    private void OnCellChanged(CollapseUpdate u)
     {
-        tileMap.SetTile((Vector3Int)pos, tile);
+        var r = u.OutputRect; // [Cell .. Cell+N)
+        for (int y = r.yMin; y < r.yMax; ++y)
+            for (int x = r.xMin; x < r.xMax; ++x)
+            {
+                var p = new Vector2Int(x, y);
+                tileMap.SetTile((Vector3Int)p, u.TileAt(p));
+            }
     }
 
     private void InitializeGridCells()

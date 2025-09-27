@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -79,20 +78,14 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
     {
         unchecked
         {
-            ulong h = 1469598103934665603UL;
-            for (int i = 0; i < p.Length; i++)
+            long hash = 1469598103934665603L;
+            foreach (var tile in p)
             {
-                var tile = p[i];
-                string guid = null;
-#if UNITY_EDITOR
-                var path = AssetDatabase.GetAssetPath(tile);
-                if (!string.IsNullOrEmpty(path)) guid = AssetDatabase.AssetPathToGUID(path);
-#endif
-                var key = guid ?? tile?.name ?? "<null>";
-                foreach (char c in key) { h ^= (byte)c; h *= 1099511628211UL; }
-                h ^= 0xFF; h *= 1099511628211UL;
+                // Use Unity's instance ID - unique and available at runtime
+                int tileHash = tile != null ? tile.GetInstanceID() : 0;
+                hash = (hash * 1099511628211L) ^ tileHash;
             }
-            return (long)h;
+            return hash;
         }
     }
 
@@ -119,12 +112,12 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         List<double> localWeights = new();
         List<TileBase[]> localPatterns = new();
 
-        for (int y = 0; y < height; ++y)
+        for (int y = 0; y <= height - N; ++y)
         {
-            for (int x = 0; x < width; ++x)
+            for (int x = 0; x <= width - N; ++x)
             {
                 TileBase[][] ts = new TileBase[8][];
-                ts[0] = Pattern((dx, dy) => tiles[(x + dx) % width + (y + dy) % height * width], N);
+                ts[0] = Pattern((dx, dy) => tiles[(x + dx) + (y + dy) * width], N);
                 ts[1] = Reflect(ts[0], N);
                 ts[2] = Rotate(ts[0], N);
                 ts[3] = Reflect(ts[2], N);
@@ -154,7 +147,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         foreach (Direction dir in DirectionExtensions.Cardinal)
         {
             localPropagator[dir] = new Dictionary<int, List<int>>();
-            var dirVector = dir.ToVector();
+            var dirVector = dir.ToArrayVector();
             for (int t = 0; t < T; ++t)
             {
                 List<int> compatiblePatterns = new();
@@ -196,7 +189,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
             int existingIndex = -1;
             for (int j = 0; j < _patterns.Count; ++j)
             {
-                if (Hash(_patterns[j]) == hash && _patterns[j].SequenceEqual(newPatterns[i]))
+                if (Hash(_patterns[j]) == hash)
                 {
                     existingIndex = j;
                     break;
@@ -258,9 +251,14 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         so.N = N;
         so.patternSize = N;
 
+        int numUncommon = 0;
+
         for (int i = 0; i < _patterns.Count; i++)
         {
-            so.patterns.Add(new OverlappingModelTileModelSO.PatternData
+            if (_weights[i] == 1) ++numUncommon;
+
+
+            so.patterns.Add(new PatternData
             {
                 patternId = i,
                 tilePattern = _patterns[i],
@@ -278,7 +276,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
                 int sourcePatternId = patternKv.Key;
                 List<int> compatiblePatternIds = patternKv.Value;
 
-                var adjacency = new OverlappingModelTileModelSO.PatternAdjacency
+                var adjacency = new PatternAdjacency
                 {
                     sourcePatternId = sourcePatternId,
                     direction = direction,
@@ -306,7 +304,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         AssetDatabase.SaveAssets();
         EditorGUIUtility.PingObject(so);
 
-        Debug.Log($"Overlap model saved: {path} | Patterns: {_patterns.Count}, Adjacency rules: {so.adjacencies.Count}");
+        Debug.Log($"Overlap model saved: {path} | Patterns: {_patterns.Count}, Adjacency rules: {so.adjacencies.Count}, Num rare patterns (N=1) : {numUncommon}");
     }
 
 }

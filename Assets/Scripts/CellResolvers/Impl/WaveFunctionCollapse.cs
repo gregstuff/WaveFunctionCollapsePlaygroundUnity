@@ -7,11 +7,11 @@ using UnityEngine.Tilemaps;
 public class WaveFunctionCollapse : TilemapResolver
 {
     private ConstraintModelSO _constraintModel;
-    private Action<Vector2Int, TileBase> _tileBaseChangedCallback;
+    private Action<CollapseUpdate> _tileBaseChangedCallback;
 
     public override void ResolveTilemap(
         ConstraintModelSO constraintModel,
-        Action<Vector2Int, TileBase> TileBaseChangedCallback)
+        Action<CollapseUpdate> TileBaseChangedCallback)
     {
         #region Setup
         _constraintModel = constraintModel;
@@ -45,7 +45,23 @@ public class WaveFunctionCollapse : TilemapResolver
                 var cand = candidates.Dequeue();
                 cand.InQueue = false;
 
+                Debug.Log($"considering: {cand.Pos}");
+
                 var entropy = _constraintModel.ReduceByNeighbors(cand);
+
+                if (entropy.NoEntropy())
+                {
+                    HandleContradiction($"WFC contradiction.");
+                }
+
+                if (entropy.NewEntropy == 1 && !cand.Collapsed)
+                {
+                    Debug.Log("early collapse....");
+                    CollapseCell(cand);
+                    _constraintModel.EnqueueNeighbours(cand, candidates);
+                    yield return new WaitForSeconds(0.2f);
+                    continue;
+                }
 
                 // if the entropy has changed, then enqueue neighbours to see if their entropy will change as well
                 // entropy oldEntropy propagate until entropy is 0
@@ -53,15 +69,10 @@ public class WaveFunctionCollapse : TilemapResolver
                 {
                     _constraintModel.EnqueueNeighbours(cand, candidates);
                 }
-
-                if (entropy.NoEntropy())
-                {
-                    HandleContradiction($"WFC contradiction.");
-                }
-
+                yield return new WaitForSeconds(0.2f);
             }
 
-            yield return null;
+            yield return new WaitForSeconds(0.2f);
         }
     }
 
@@ -76,8 +87,9 @@ public class WaveFunctionCollapse : TilemapResolver
 
     private void CollapseCell(Cell c)
     {
-        var selectedTile = _constraintModel.CollapseCell(c);
-        _tileBaseChangedCallback?.Invoke(c.Pos, selectedTile);
+        var collapseUpdate = _constraintModel.CollapseCell(c);
+        _tileBaseChangedCallback?.Invoke(collapseUpdate);
+
     }
 
 }

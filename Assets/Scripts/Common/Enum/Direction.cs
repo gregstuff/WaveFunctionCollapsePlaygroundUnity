@@ -20,14 +20,26 @@ public static class DirectionExtensions
         Direction.WEST
     };
 
-    public static Vector2Int ToVector(this Direction dir)
+    public static Vector2Int ToGridVector(this Direction dir)
+    {
+        return dir switch
+        {
+            Direction.NORTH => new Vector2Int(0, 1),
+            Direction.SOUTH => new Vector2Int(0, -1),
+            Direction.EAST => new Vector2Int(1, 0),
+            Direction.WEST => new Vector2Int(-1, 0),
+            _ => Vector2Int.zero
+        };
+    }
+
+    public static Vector2Int ToArrayVector(this Direction dir)
     {
         return dir switch
         {
             Direction.NORTH => new Vector2Int(0, -1),
             Direction.SOUTH => new Vector2Int(0, 1),
-            Direction.WEST => new Vector2Int(1, 0),
-            Direction.EAST => new Vector2Int(-1, 0),
+            Direction.EAST => new Vector2Int(1, 0),
+            Direction.WEST => new Vector2Int(-1, 0),
             _ => Vector2Int.zero
         };
     }
