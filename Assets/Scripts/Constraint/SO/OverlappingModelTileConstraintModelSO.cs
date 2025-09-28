@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using UnityEngine;
-using UnityEngine.Tilemaps;
 
 [CreateAssetMenu(menuName = "ProcGen/WFC/Overlap Model")]
 public class OverlappingModelTileModelSO : ConstraintModelSO
@@ -19,7 +18,8 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
     private int _width;
 
     private Dictionary<Direction, Dictionary<int, HashSet<int>>> _directionToPatternIdToCompatiblePatterns;
-    private Dictionary<Vector2Int, List<PatternData>> _cellPositionAvailablePatterns;
+    private Dictionary<Vector2Int, HashSet<int>> _cellPositionAvailablePatternIDs;
+    private Dictionary<int, PatternData> _patternIDToPattern;
     private Dictionary<int, HashSet<Vector2Int>> _entropyToPositions;
     private Dictionary<Vector2Int, Cell> _positionsToCells;
     private System.Random _random;
@@ -35,10 +35,20 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         _random = new System.Random();
         _height = dimensions.y;
         _width = dimensions.x;
-        _cellPositionAvailablePatterns = new();
+        _cellPositionAvailablePatternIDs = new();
         _entropyToPositions = new();
         _positionsToCells = new();
         _directionToPatternIdToCompatiblePatterns = new();
+        _patternIDToPattern = new();
+
+        var allPatternIDs = new List<int>();
+
+        for (int i = 0; i < patterns.Count; ++i)
+        {
+            var selectedPattern = patterns[i];
+            allPatternIDs.Add(selectedPattern.patternId);
+            _patternIDToPattern.Add(selectedPattern.patternId, selectedPattern);
+        }
 
         // init each cell...
         for (int y = 0; y < _height; ++y)
@@ -46,7 +56,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
             for (int x = 0; x < _width; ++x)
             {
                 var pos = new Vector2Int(x, y);
-                _cellPositionAvailablePatterns[pos] = new List<PatternData>(patterns);
+                _cellPositionAvailablePatternIDs[pos] = new HashSet<int>(allPatternIDs);
                 _positionsToCells[pos] = new Cell(pos);
             }
         }
@@ -57,7 +67,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
             HashSet<Vector2Int> items = null;
 
             // initially, all cells start with all possibilities
-            if (i == patterns.Count) items = new HashSet<Vector2Int>(_cellPositionAvailablePatterns.Keys.ToList());
+            if (i == patterns.Count) items = new HashSet<Vector2Int>(_cellPositionAvailablePatternIDs.Keys.ToList());
             else items = new HashSet<Vector2Int>();
 
             _entropyToPositions[i] = items;
@@ -91,31 +101,36 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
     public override CollapseUpdate CollapseCell(Cell cell)
     {
         var pos = cell.Pos;
-        var availablePatterns = _cellPositionAvailablePatterns[pos];
-        var patternCount = availablePatterns.Count;
+        var availablePatternIDs = _cellPositionAvailablePatternIDs[pos];
+        var patternCount = availablePatternIDs.Count;
         PatternData selectedPattern = null;
 
         double totalWeight = 0;
 
-        for (int i = 0; i < availablePatterns.Count; ++i)
-            totalWeight += availablePatterns[i].weight;
+        foreach (var patternID in availablePatternIDs)
+        {
+            var pattern = _patternIDToPattern[patternID];
+            totalWeight += pattern.weight;
+        }
+
 
         double randomSelection = _random.NextDouble() * totalWeight;
         double curr = 0;
 
-        for (int i = 0; i < patternCount; ++i)
+        foreach (var patternID in availablePatternIDs)
         {
-            curr += availablePatterns[i].weight;
+            var pattern = _patternIDToPattern[patternID];
+            curr += pattern.weight;
             if (curr >= randomSelection)
             {
-                selectedPattern = availablePatterns[i];
+                selectedPattern = pattern;
                 break;
             }
         }
 
         // set selected pattern for this cell..
-        _cellPositionAvailablePatterns[pos].Clear();
-        _cellPositionAvailablePatterns[pos].Add(selectedPattern);
+        _cellPositionAvailablePatternIDs[pos].Clear();
+        _cellPositionAvailablePatternIDs[pos].Add(selectedPattern.patternId);
 
         // mark cell as collapsed...
         cell.Collapse();
@@ -169,47 +184,52 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
     public override EntropyResult ReduceByNeighbors(Cell cell)
     {
-        void HandleCollapsedNeighbour(Direction myDirectionToNeighbour, Cell neighbour)
+        void HandleCollapsedNeighbour(
+            Direction myDirectionToNeighbour,
+            Cell neighbour,
+            HashSet<int> allowedPatternIDs)
         {
-            // we know there's only one pattern...
-            var neighbourPattern = _cellPositionAvailablePatterns[neighbour.Pos][0];
-            var cellPatterns = _cellPositionAvailablePatterns[cell.Pos];
+            var neighbourPatternID = _cellPositionAvailablePatternIDs[neighbour.Pos].First();
+            var neighbourPattern = _patternIDToPattern[neighbourPatternID];
 
             // from the neighbour to the current cell, what patterns is the current cell allowed to have?
             var compattiblePatternsForCollapsed =
                 _directionToPatternIdToCompatiblePatterns[myDirectionToNeighbour.GetOpposite()][neighbourPattern.patternId];
 
-            var allowedPatterns = cellPatterns.Where(p => compattiblePatternsForCollapsed.Contains(p.patternId));
-
-            _cellPositionAvailablePatterns[cell.Pos] = allowedPatterns.ToList();
+            allowedPatternIDs.IntersectWith(compattiblePatternsForCollapsed);
         }
 
-        void HandleUncollapsedNeighbour(Direction myDirectionToNeighbour, Cell neighbour)
+        void HandleUncollapsedNeighbour(
+            Direction myDirectionToNeighbour,
+            Cell neighbour,
+            HashSet<int> allowedPatternIDs)
         {
-            var neighbourPatterns = _cellPositionAvailablePatterns[neighbour.Pos];
-            var cellPatterns = _cellPositionAvailablePatterns[cell.Pos];
+            var neighbourPatterns = _cellPositionAvailablePatternIDs[neighbour.Pos];
+            var oppositeDir = myDirectionToNeighbour.GetOpposite();
 
-            List<PatternData> stillAllowedPatterns = new List<PatternData>();
-
-            foreach (var cellPattern in cellPatterns)
+            if (!_directionToPatternIdToCompatiblePatterns.TryGetValue(oppositeDir, out var dirCompatibilities))
             {
-                if (_directionToPatternIdToCompatiblePatterns.TryGetValue(myDirectionToNeighbour, out var patternCompatibilities) &&
-                    patternCompatibilities.TryGetValue(cellPattern.patternId, out var compatiblePatternIds))
-                {
-                    bool isCompatibleWithAnyNeighborPattern = neighbourPatterns
-                        .Any(neighborPattern => compatiblePatternIds.Contains(neighborPattern.patternId));
+                allowedPatternIDs.Clear();
+                return;
+            }
 
-                    if (isCompatibleWithAnyNeighborPattern)
-                    {
-                        stillAllowedPatterns.Add(cellPattern);
-                    }
+            // Build set of ALL patterns that are compatible with ANY neighbor pattern
+            var allCompatiblePatterns = new HashSet<int>();
+            foreach (var neighbourPatternID in neighbourPatterns)
+            {
+                if (dirCompatibilities.TryGetValue(neighbourPatternID, out var compatibleSet))
+                {
+                    allCompatiblePatterns.UnionWith(compatibleSet);
                 }
             }
 
-            _cellPositionAvailablePatterns[cell.Pos] = stillAllowedPatterns;
+            allowedPatternIDs.IntersectWith(allCompatiblePatterns);
         }
 
-        var startingEntropy = _cellPositionAvailablePatterns[cell.Pos].Count;
+        var startingEntropy = _cellPositionAvailablePatternIDs[cell.Pos].Count;
+
+        var currentPatterns = _cellPositionAvailablePatternIDs[cell.Pos];
+        var allowedPatternIDs = new HashSet<int>(currentPatterns);
 
         foreach (var dir in DirectionExtensions.Cardinal)
         {
@@ -218,11 +238,13 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
             if (!_positionsToCells.TryGetValue(neighbourPos, out var neighbour)) continue;
 
-            if (neighbour.Collapsed) HandleCollapsedNeighbour(dir, neighbour);
-            else HandleUncollapsedNeighbour(dir, neighbour);
+            if (neighbour.Collapsed) HandleCollapsedNeighbour(dir, neighbour, allowedPatternIDs);
+            else HandleUncollapsedNeighbour(dir, neighbour, allowedPatternIDs);
         }
 
-        var finishingEntropy = _cellPositionAvailablePatterns[cell.Pos].Count;
+        _cellPositionAvailablePatternIDs[cell.Pos] = allowedPatternIDs;
+
+        var finishingEntropy = _cellPositionAvailablePatternIDs[cell.Pos].Count;
 
         Debug.Log($"check for ${cell.Pos}");
         Debug.Log($"starting entropy: {startingEntropy}, finishing entropy: {finishingEntropy}");

@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bf1a739701e74b43929b93a72e33439, type: 3}
+  m_Name: NoContraOverlapModel_N3
+  m_EditorClassIdentifier: 
+  IgnoreContradictions: 0
+  DefaultTile: {fileID: 11400000, guid: d3899344013486b40b55e6544b59797c, type: 2}
+  N: 3
+  patternSize: 3
+  patterns:
+  - patternId: 0
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 352
+  adjacencies:
+  - sourcePatternId: 0
+    direction: 1
+    compatiblePatternIds: 00000000
+  - sourcePatternId: 0
+    direction: 2
+    compatiblePatternIds: 00000000
+  - sourcePatternId: 0
+    direction: 3
+    compatiblePatternIds: 00000000
+  - sourcePatternId: 0
+    direction: 4
+    compatiblePatternIds: 00000000
+  minPatternFrequency: 1

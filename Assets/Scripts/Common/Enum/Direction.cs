@@ -32,18 +32,6 @@ public static class DirectionExtensions
         };
     }
 
-    public static Vector2Int ToArrayVector(this Direction dir)
-    {
-        return dir switch
-        {
-            Direction.NORTH => new Vector2Int(0, -1),
-            Direction.SOUTH => new Vector2Int(0, 1),
-            Direction.EAST => new Vector2Int(1, 0),
-            Direction.WEST => new Vector2Int(-1, 0),
-            _ => Vector2Int.zero
-        };
-    }
-
     public static Direction GetOpposite(this Direction dir)
     {
         return dir switch

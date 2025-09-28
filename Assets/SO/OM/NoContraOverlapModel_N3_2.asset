@@ -1,0 +1,261 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bf1a739701e74b43929b93a72e33439, type: 3}
+  m_Name: NoContraOverlapModel_N3_2
+  m_EditorClassIdentifier: 
+  IgnoreContradictions: 0
+  DefaultTile: {fileID: 0}
+  N: 3
+  patternSize: 3
+  patterns:
+  - patternId: 0
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 312
+  - patternId: 1
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    weight: 4
+  - patternId: 2
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 5
+  - patternId: 3
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 5
+  - patternId: 4
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 4
+  - patternId: 5
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 5
+  - patternId: 6
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 5
+  - patternId: 7
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 4
+  - patternId: 8
+    tilePattern:
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 4
+  - patternId: 9
+    tilePattern:
+    - {fileID: 11400000, guid: e3906e097add8a34a88c76b7ead87f6c, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    - {fileID: 11400000, guid: 9dae5d408e21325428477ae4c2d73955, type: 2}
+    weight: 4
+  adjacencies:
+  - sourcePatternId: 0
+    direction: 1
+    compatiblePatternIds: 00000000010000000200000003000000
+  - sourcePatternId: 1
+    direction: 1
+    compatiblePatternIds: 04000000
+  - sourcePatternId: 2
+    direction: 1
+    compatiblePatternIds: 05000000
+  - sourcePatternId: 3
+    direction: 1
+    compatiblePatternIds: 06000000
+  - sourcePatternId: 4
+    direction: 1
+    compatiblePatternIds: 07000000
+  - sourcePatternId: 5
+    direction: 1
+    compatiblePatternIds: 08000000
+  - sourcePatternId: 6
+    direction: 1
+    compatiblePatternIds: 09000000
+  - sourcePatternId: 7
+    direction: 1
+    compatiblePatternIds: 00000000010000000200000003000000
+  - sourcePatternId: 8
+    direction: 1
+    compatiblePatternIds: 00000000010000000200000003000000
+  - sourcePatternId: 9
+    direction: 1
+    compatiblePatternIds: 00000000010000000200000003000000
+  - sourcePatternId: 0
+    direction: 2
+    compatiblePatternIds: 00000000070000000800000009000000
+  - sourcePatternId: 1
+    direction: 2
+    compatiblePatternIds: 00000000070000000800000009000000
+  - sourcePatternId: 2
+    direction: 2
+    compatiblePatternIds: 00000000070000000800000009000000
+  - sourcePatternId: 3
+    direction: 2
+    compatiblePatternIds: 00000000070000000800000009000000
+  - sourcePatternId: 4
+    direction: 2
+    compatiblePatternIds: 01000000
+  - sourcePatternId: 5
+    direction: 2
+    compatiblePatternIds: 02000000
+  - sourcePatternId: 6
+    direction: 2
+    compatiblePatternIds: 03000000
+  - sourcePatternId: 7
+    direction: 2
+    compatiblePatternIds: 04000000
+  - sourcePatternId: 8
+    direction: 2
+    compatiblePatternIds: 05000000
+  - sourcePatternId: 9
+    direction: 2
+    compatiblePatternIds: 06000000
+  - sourcePatternId: 0
+    direction: 3
+    compatiblePatternIds: 00000000010000000400000007000000
+  - sourcePatternId: 1
+    direction: 3
+    compatiblePatternIds: 02000000
+  - sourcePatternId: 2
+    direction: 3
+    compatiblePatternIds: 03000000
+  - sourcePatternId: 3
+    direction: 3
+    compatiblePatternIds: 00000000010000000400000007000000
+  - sourcePatternId: 4
+    direction: 3
+    compatiblePatternIds: 05000000
+  - sourcePatternId: 5
+    direction: 3
+    compatiblePatternIds: 06000000
+  - sourcePatternId: 6
+    direction: 3
+    compatiblePatternIds: 00000000010000000400000007000000
+  - sourcePatternId: 7
+    direction: 3
+    compatiblePatternIds: 08000000
+  - sourcePatternId: 8
+    direction: 3
+    compatiblePatternIds: 09000000
+  - sourcePatternId: 9
+    direction: 3
+    compatiblePatternIds: 00000000010000000400000007000000
+  - sourcePatternId: 0
+    direction: 4
+    compatiblePatternIds: 00000000030000000600000009000000
+  - sourcePatternId: 1
+    direction: 4
+    compatiblePatternIds: 00000000030000000600000009000000
+  - sourcePatternId: 2
+    direction: 4
+    compatiblePatternIds: 01000000
+  - sourcePatternId: 3
+    direction: 4
+    compatiblePatternIds: 02000000
+  - sourcePatternId: 4
+    direction: 4
+    compatiblePatternIds: 00000000030000000600000009000000
+  - sourcePatternId: 5
+    direction: 4
+    compatiblePatternIds: 04000000
+  - sourcePatternId: 6
+    direction: 4
+    compatiblePatternIds: 05000000
+  - sourcePatternId: 7
+    direction: 4
+    compatiblePatternIds: 00000000030000000600000009000000
+  - sourcePatternId: 8
+    direction: 4
+    compatiblePatternIds: 07000000
+  - sourcePatternId: 9
+    direction: 4
+    compatiblePatternIds: 08000000
+  minPatternFrequency: 1

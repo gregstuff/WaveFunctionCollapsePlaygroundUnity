@@ -45,14 +45,17 @@ public class WaveFunctionCollapse : TilemapResolver
                 var cand = candidates.Dequeue();
                 cand.InQueue = false;
 
-                Debug.Log($"considering: {cand.Pos}");
-
+                var start = DateTime.Now;
                 var entropy = _constraintModel.ReduceByNeighbors(cand);
+                var millisecondsElapsed = (DateTime.Now - start).TotalMilliseconds;
 
                 if (entropy.NoEntropy())
                 {
-                    HandleContradiction($"WFC contradiction.");
+                    HandleContradiction($"WFC contradiction.", cand);
+                    continue;
                 }
+
+                Debug.Log($"considering: {cand.Pos}, in queue: {candidates.Count}, reduce ms: {millisecondsElapsed}");
 
                 if (entropy.NewEntropy == 1 && !cand.Collapsed)
                 {
@@ -69,16 +72,20 @@ public class WaveFunctionCollapse : TilemapResolver
                 {
                     _constraintModel.EnqueueNeighbours(cand, candidates);
                 }
-                yield return new WaitForSeconds(0.2f);
+                //yield return null;
             }
 
-            yield return new WaitForSeconds(0.2f);
+            yield return null;
         }
     }
 
-    private void HandleContradiction(string contradiction)
+    private void HandleContradiction(string contradiction, Cell c)
     {
-        if (_constraintModel.IgnoreContradictions) return;
+        if (_constraintModel.IgnoreContradictions)
+        {
+            c.Collapsed = true;
+            return;
+        }
 
         Debug.LogError(contradiction);
 

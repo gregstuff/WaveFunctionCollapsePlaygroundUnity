@@ -147,7 +147,7 @@ public class OverlapModelTileMapConstraintBuilderTwo : ConstraintBuilder
         foreach (Direction dir in DirectionExtensions.Cardinal)
         {
             localPropagator[dir] = new Dictionary<int, List<int>>();
-            var dirVector = dir.ToArrayVector();
+            var dirVector = dir.ToGridVector();
             for (int t = 0; t < T; ++t)
             {
                 List<int> compatiblePatterns = new();
