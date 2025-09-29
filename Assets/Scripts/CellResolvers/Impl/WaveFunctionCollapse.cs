@@ -45,9 +45,10 @@ public class WaveFunctionCollapse : TilemapResolver
                 var cand = candidates.Dequeue();
                 cand.InQueue = false;
 
-                var start = DateTime.Now;
                 var entropy = _constraintModel.ReduceByNeighbors(cand);
-                var millisecondsElapsed = (DateTime.Now - start).TotalMilliseconds;
+
+
+                //Debug.Log($"coinsider {cand.Pos}");
 
                 if (entropy.NoEntropy())
                 {
@@ -55,11 +56,8 @@ public class WaveFunctionCollapse : TilemapResolver
                     continue;
                 }
 
-                Debug.Log($"considering: {cand.Pos}, in queue: {candidates.Count}, reduce ms: {millisecondsElapsed}");
-
                 if (entropy.NewEntropy == 1 && !cand.Collapsed)
                 {
-                    Debug.Log("early collapse....");
                     CollapseCell(cand);
                     _constraintModel.EnqueueNeighbours(cand, candidates);
                     yield return new WaitForSeconds(0.2f);
@@ -72,6 +70,7 @@ public class WaveFunctionCollapse : TilemapResolver
                 {
                     _constraintModel.EnqueueNeighbours(cand, candidates);
                 }
+
                 //yield return null;
             }
 

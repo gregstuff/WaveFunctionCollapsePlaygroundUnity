@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Net;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ProcGen/WFC/Overlap Model")]
@@ -17,12 +18,18 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
     private int _height;
     private int _width;
 
-    private Dictionary<Direction, Dictionary<int, HashSet<int>>> _directionToPatternIdToCompatiblePatterns;
-    private Dictionary<Vector2Int, HashSet<int>> _cellPositionAvailablePatternIDs;
-    private Dictionary<int, PatternData> _patternIDToPattern;
     private Dictionary<int, HashSet<Vector2Int>> _entropyToPositions;
     private Dictionary<Vector2Int, Cell> _positionsToCells;
     private System.Random _random;
+
+    private ModelDataMany _md;
+    private GridIndex _gi;
+
+    private ulong[] _tmpUnion;
+
+    private Dictionary<int, int> _idToDense;
+
+    private PatternData[] _denseToPattern;
 
     public OverlappingModelTileModelSO()
     {
@@ -30,25 +37,192 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         adjacencies = new List<PatternAdjacency>();
     }
 
+    private enum Dir { North = 0, East = 1, South = 2, West = 3 }
+
+    private sealed class ModelDataMany
+    {
+        public int Width, Height, P, Blocks;
+        public ulong TailMask;
+
+        public ulong[][][] Compat;
+
+        public ulong[] AllowedPerCellFlat;
+        public PatternData[] PatternsByDensity;
+    }
+
+    private sealed class GridIndex
+    {
+        private readonly int _w, _h;
+        public readonly int[] Offset = new int[4];
+
+        public GridIndex(int width, int height)
+        {
+            _w = width; _h = height;
+            Offset[(int)Dir.North] = _w;
+            Offset[(int)Dir.East] = 1;
+            Offset[(int)Dir.South] = -_w;
+            Offset[(int)Dir.West] = -1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Idx(int x, int y) => y * _w + x;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryNeighbour(int idx, Dir d, out int nIdx)
+        {
+            int x = idx % _w;
+            int y = idx / _w;
+            switch (d)
+            {
+                case Dir.North:
+                    y += 1;
+                    break;
+                case Dir.East:
+                    x += 1;
+                    break;
+                case Dir.South:
+                    y -= 1;
+                    break;
+                case Dir.West:
+                    x -= 1;
+                    break;
+            }
+
+            if ((uint)x < (uint)_w && (uint)y < (uint)_h)
+            {
+                nIdx = y * _w + x;
+                return true;
+            }
+            nIdx = -1;
+            return false;
+        }
+    }
+
+    private static class BitChunks
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int BlocksFor(int P) => (P + 63) >> 6;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong TailMaskFor(int P)
+        {
+            int r = P & 63;
+            return r == 0 ? ulong.MaxValue : ((1UL) << r) - 1UL;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetBit(ulong[] blocks, int bitId)
+        {
+            int b = bitId >> 6;
+            int o = bitId & 63;
+            blocks[b] |= 1UL << o;
+        }
+    }
+
+    private class CompatBuilderMany
+    {
+        public static ulong[][][] BuildCompatChunked(
+            int P,
+            IEnumerable<PatternAdjacency> adjacencies,
+            Func<int, int> denseIdMap,
+            Func<Direction, Dir> mapDir,
+            int dirCount = 4)
+        {
+
+            int blocks = BitChunks.BlocksFor(P);
+            var compat = new ulong[dirCount][][];
+
+            for (int d = 0; d < dirCount; ++d)
+            {
+                compat[d] = new ulong[P][];
+                for (int p = 0; p < P; ++p)
+                    compat[d][p] = new ulong[blocks];
+            }
+
+            foreach (var a in adjacencies)
+            {
+                int src = denseIdMap(a.sourcePatternId);
+                if (src < 0) continue;
+
+                int d = (int)mapDir(a.direction);
+                var row = compat[d][src];
+
+                foreach (var cid in a.compatiblePatternIds)
+                {
+                    int c = denseIdMap(cid);
+                    if (c >= 0) BitChunks.SetBit(row, c);
+                }
+            }
+            return compat;
+        }
+    }
+
     public override void Init(Vector2Int dimensions)
     {
         _random = new System.Random();
         _height = dimensions.y;
         _width = dimensions.x;
-        _cellPositionAvailablePatternIDs = new();
         _entropyToPositions = new();
         _positionsToCells = new();
-        _directionToPatternIdToCompatiblePatterns = new();
-        _patternIDToPattern = new();
 
-        var allPatternIDs = new List<int>();
+        var filtered = (minPatternFrequency > 1)
+            ? patterns.Where(p => p.weight >= minPatternFrequency).ToList()
+            : patterns;
 
-        for (int i = 0; i < patterns.Count; ++i)
+        int P = filtered.Count;
+
+        if (P == 0) throw new InvalidOperationException("No patterns available");
+
+        _idToDense = new();
+        _denseToPattern = new PatternData[P];
+
+        for (int i = 0; i < P; ++i)
         {
-            var selectedPattern = patterns[i];
-            allPatternIDs.Add(selectedPattern.patternId);
-            _patternIDToPattern.Add(selectedPattern.patternId, selectedPattern);
+            _idToDense[filtered[i].patternId] = i;
+            _denseToPattern[i] = filtered[i];
         }
+
+        Dir MapDir(Direction d) => d switch
+        {
+            Direction.NORTH => Dir.North,
+            Direction.SOUTH => Dir.South,
+            Direction.WEST => Dir.West,
+            Direction.EAST => Dir.East,
+            _ => throw new ArgumentOutOfRangeException(nameof(d)),
+        };
+
+        int blocks = BitChunks.BlocksFor(P);
+        ulong tailMask = BitChunks.TailMaskFor(P);
+        var compat = CompatBuilderMany.BuildCompatChunked(
+            P,
+            adjacencies,
+            id => _idToDense.TryGetValue(id, out var d) ? d : -1,
+            MapDir);
+
+        int numCells = _width * _height;
+        var allowedFlat = new ulong[numCells * blocks];
+        for (int cell = 0; cell < numCells; ++cell)
+        {
+            int baseIdx = cell * blocks;
+            for (int b = 0; b < blocks - 1; ++b)
+                allowedFlat[baseIdx + b] = ulong.MaxValue;
+            allowedFlat[baseIdx + (blocks - 1)] = tailMask;
+        }
+
+        _md = new ModelDataMany
+        {
+            Width = _width,
+            Height = _height,
+            P = P,
+            Blocks = blocks,
+            TailMask = tailMask,
+            Compat = compat,
+            AllowedPerCellFlat = allowedFlat,
+            PatternsByDensity = _denseToPattern
+        };
+
+        _gi = new GridIndex(_width, _height);
+        _tmpUnion = new ulong[_md.Blocks];
 
         // init each cell...
         for (int y = 0; y < _height; ++y)
@@ -56,39 +230,17 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
             for (int x = 0; x < _width; ++x)
             {
                 var pos = new Vector2Int(x, y);
-                _cellPositionAvailablePatternIDs[pos] = new HashSet<int>(allPatternIDs);
                 _positionsToCells[pos] = new Cell(pos);
             }
         }
 
         // init entropy buckets
-        for (int i = 1; i <= patterns.Count; ++i)
+        _entropyToPositions.Clear();
+        for (int i = 1; i <= _md.P; ++i)
         {
-            HashSet<Vector2Int> items = null;
-
-            // initially, all cells start with all possibilities
-            if (i == patterns.Count) items = new HashSet<Vector2Int>(_cellPositionAvailablePatternIDs.Keys.ToList());
-            else items = new HashSet<Vector2Int>();
-
-            _entropyToPositions[i] = items;
-        }
-
-        // what patterns are allowed to be next to each other for a given direction?
-        foreach (var adjacency in adjacencies)
-        {
-            if (!_directionToPatternIdToCompatiblePatterns.TryGetValue(adjacency.direction, out var patternToCompatiblePatterns))
-            {
-                _directionToPatternIdToCompatiblePatterns[adjacency.direction] = new Dictionary<int, HashSet<int>>();
-                patternToCompatiblePatterns = _directionToPatternIdToCompatiblePatterns[adjacency.direction];
-            }
-
-            if (!patternToCompatiblePatterns.TryGetValue(adjacency.sourcePatternId, out var compatiblePatterns))
-            {
-                _directionToPatternIdToCompatiblePatterns[adjacency.direction][adjacency.sourcePatternId] = new HashSet<int>();
-                compatiblePatterns = _directionToPatternIdToCompatiblePatterns[adjacency.direction][adjacency.sourcePatternId];
-            }
-
-            adjacency.compatiblePatternIds.ForEach(id => compatiblePatterns.Add(id));
+            _entropyToPositions[i] = (i == _md.P)
+                ? new HashSet<Vector2Int>(_positionsToCells.Keys)
+                : new HashSet<Vector2Int>();
         }
 
     }
@@ -98,54 +250,71 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
      * Resolve selected pattern based on available patterns and weights for cell
      * 
      */
+
     public override CollapseUpdate CollapseCell(Cell cell)
     {
-        var pos = cell.Pos;
-        var availablePatternIDs = _cellPositionAvailablePatternIDs[pos];
-        var patternCount = availablePatternIDs.Count;
-        PatternData selectedPattern = null;
+        int x = cell.Pos.x, y = cell.Pos.y;
+        int idx = _gi.Idx(x, y);
+        int baseIdx = idx * _md.Blocks;
 
         double totalWeight = 0;
-
-        foreach (var patternID in availablePatternIDs)
+        for (int b = 0; b < _md.Blocks; ++b)
         {
-            var pattern = _patternIDToPattern[patternID];
-            totalWeight += pattern.weight;
-        }
-
-
-        double randomSelection = _random.NextDouble() * totalWeight;
-        double curr = 0;
-
-        foreach (var patternID in availablePatternIDs)
-        {
-            var pattern = _patternIDToPattern[patternID];
-            curr += pattern.weight;
-            if (curr >= randomSelection)
+            ulong v = _md.AllowedPerCellFlat[baseIdx + b];
+            while (v != 0)
             {
-                selectedPattern = pattern;
-                break;
+                int bit = FastBits.TrailingZeroCount(v);
+                int p = (b << 6) + bit;
+                totalWeight += _md.PatternsByDensity[p].weight;
+                v &= v - 1;
             }
         }
 
-        // set selected pattern for this cell..
-        _cellPositionAvailablePatternIDs[pos].Clear();
-        _cellPositionAvailablePatternIDs[pos].Add(selectedPattern.patternId);
+        if (totalWeight <= 0)
+            throw new InvalidOperationException("No available patterns");
 
-        // mark cell as collapsed...
+        double r = _random.NextDouble() * totalWeight;
+        PatternData selected = null;
+
+        double acc = 0;
+        for (int b = 0; b < _md.Blocks && selected == null; ++b)
+        {
+            ulong v = _md.AllowedPerCellFlat[baseIdx + b];
+            while (v != 0)
+            {
+                int bit = FastBits.TrailingZeroCount(v);
+                int p = (b << 6) + bit;
+                var pd = _md.PatternsByDensity[p];
+                acc += pd.weight;
+                if (acc >= r)
+                {
+                    selected = pd;
+                    break;
+                }
+                v &= v - 1;
+            }
+        }
+
+        for (int b = 0; b < _md.Blocks; ++b) _md.AllowedPerCellFlat[baseIdx + b] = 0UL;
+        int selDense = _idToDense[selected.patternId];
+        int sb = selDense >> 6;
+        int so = selDense & 63;
+        _md.AllowedPerCellFlat[baseIdx + sb] = (1UL << so);
+
         cell.Collapse();
 
-        //we don't need a reference here anymore...
-        _entropyToPositions[patternCount].Remove(pos);
-
+        for (int i = 1; i <= _md.P; ++i)
+            _entropyToPositions[i].Remove(cell.Pos);
+        _entropyToPositions[1].Add(cell.Pos);
 
         return new CollapseUpdate
         {
             Cell = cell.Pos,
             N = N,
-            PatternId = selectedPattern.patternId,
-            Tiles = selectedPattern.tilePattern
+            PatternId = selected.patternId,
+            Tiles = selected.tilePattern
         };
+
     }
 
     public override void EnqueueNeighbours(Cell cell, Queue<Cell> candidates)
@@ -166,96 +335,138 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
     public override Cell GetNext()
     {
-
-        Vector2Int pos;
-
-        for (int i = 1; i <= patterns.Count; ++i)
+        for (int i = 2; i <= _md.P; ++i)
         {
-            if (_entropyToPositions[i].Count > 0)
+            if (_entropyToPositions[i].Count == 0) continue;
+
+            foreach (var pos in _entropyToPositions[i])
             {
-                pos = _entropyToPositions[i].First();
-                return _positionsToCells[pos];
+                var c = _positionsToCells[pos];
+                if (!c.Collapsed) return c;
             }
         }
 
-        // we're finished...
         return null;
     }
 
     public override EntropyResult ReduceByNeighbors(Cell cell)
     {
-        void HandleCollapsedNeighbour(
-            Direction myDirectionToNeighbour,
-            Cell neighbour,
-            HashSet<int> allowedPatternIDs)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        int BaseOf(int cellIdx) => cellIdx * _md.Blocks;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static int PopCountBlocks(ulong[] a, int @base, int blocks)
         {
-            var neighbourPatternID = _cellPositionAvailablePatternIDs[neighbour.Pos].First();
-            var neighbourPattern = _patternIDToPattern[neighbourPatternID];
-
-            // from the neighbour to the current cell, what patterns is the current cell allowed to have?
-            var compattiblePatternsForCollapsed =
-                _directionToPatternIdToCompatiblePatterns[myDirectionToNeighbour.GetOpposite()][neighbourPattern.patternId];
-
-            allowedPatternIDs.IntersectWith(compattiblePatternsForCollapsed);
+            int sum = 0;
+            for (int b = 0; b < blocks; ++b) sum += FastBits.PopCount(a[@base + b]);
+            return sum;
         }
 
-        void HandleUncollapsedNeighbour(
-            Direction myDirectionToNeighbour,
-            Cell neighbour,
-            HashSet<int> allowedPatternIDs)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static bool TrySingleton(ulong[] a, int @base, int blocks, out int patternId)
         {
-            var neighbourPatterns = _cellPositionAvailablePatternIDs[neighbour.Pos];
-            var oppositeDir = myDirectionToNeighbour.GetOpposite();
+            int total = 0;
+            int lastBlock = -1;
+            ulong lastVal = 0;
 
-            if (!_directionToPatternIdToCompatiblePatterns.TryGetValue(oppositeDir, out var dirCompatibilities))
+            for (int b = 0; b < blocks; ++b)
             {
-                allowedPatternIDs.Clear();
-                return;
+                ulong v = a[@base + b];
+                if (v == 0) continue;
+                int pc = FastBits.PopCount(v);
+                total += pc;
+                if (total > 1) { patternId = -1; return false; }
+                lastBlock = b;
+                lastVal = v;
             }
 
-            // Build set of ALL patterns that are compatible with ANY neighbor pattern
-            var allCompatiblePatterns = new HashSet<int>();
-            foreach (var neighbourPatternID in neighbourPatterns)
+            if (total == 1)
             {
-                if (dirCompatibilities.TryGetValue(neighbourPatternID, out var compatibleSet))
+                patternId = (lastBlock << 6) + FastBits.TrailingZeroCount(lastVal);
+                return true;
+            }
+
+            patternId = -1;
+            return false;
+        }
+
+        int x = cell.Pos.x, y = cell.Pos.y;
+        int idx = _gi.Idx(x, y);
+        int aBase = BaseOf(idx);
+        int startingEntropy = PopCountBlocks(_md.AllowedPerCellFlat, aBase, _md.Blocks);
+
+        for (int d = 0; d < 4; ++d)
+        {
+            if (!_gi.TryNeighbour(idx, (Dir)d, out int nIdx)) continue;
+
+            int od = d ^ 2;
+            int nBase = BaseOf(nIdx);
+
+            bool neighbourZero = true;
+            for (int b = 0; b < _md.Blocks; ++b)
+                if (_md.AllowedPerCellFlat[nBase + b] != 0) { neighbourZero = false; break; }
+
+            if (neighbourZero)
+            {
+                for (int b = 0; b < _md.Blocks; ++b) _md.AllowedPerCellFlat[aBase + b] = 0UL;
+                goto Finish;
+            }
+
+            if (TrySingleton(_md.AllowedPerCellFlat, nBase, _md.Blocks, out int nPat))
+            {
+                var row = _md.Compat[od][nPat];
+                for (int b = 0; b < _md.Blocks; ++b)
+                    _md.AllowedPerCellFlat[aBase + b] &= row[b];
+
+                _md.AllowedPerCellFlat[aBase + (_md.Blocks - 1)] &= _md.TailMask;
+
+                bool zeroNow = true;
+
+                for (int b = 0; b < _md.Blocks; ++b)
+                    if (_md.AllowedPerCellFlat[aBase + b] != 0) { zeroNow = false; break; }
+                if (zeroNow) goto Finish;
+
+                continue;
+            }
+
+            for (int b = 0; b < _md.Blocks; ++b) _tmpUnion[b] = 0UL;
+
+            for (int b = 0; b < _md.Blocks; ++b)
+            {
+                ulong v = _md.AllowedPerCellFlat[nBase + b];
+                while (v != 0)
                 {
-                    allCompatiblePatterns.UnionWith(compatibleSet);
+                    int bit = FastBits.TrailingZeroCount(v);
+                    int p = (b << 6) + bit;
+                    var row = _md.Compat[od][p];
+                    for (int ub = 0; ub < _md.Blocks; ++ub)
+                        _tmpUnion[ub] |= row[ub];
+                    v &= v - 1;
                 }
             }
 
-            allowedPatternIDs.IntersectWith(allCompatiblePatterns);
+            for (int b = 0; b < _md.Blocks; ++b)
+                _md.AllowedPerCellFlat[aBase + b] &= _tmpUnion[b];
+
+            _md.AllowedPerCellFlat[aBase + (_md.Blocks - 1)] &= _md.TailMask;
+
+            bool becameZero = true;
+            for (int b = 0; b < _md.Blocks; ++b)
+                if (_md.AllowedPerCellFlat[aBase + b] != 0) { becameZero = false; break; }
+            if (becameZero) goto Finish;
         }
 
-        var startingEntropy = _cellPositionAvailablePatternIDs[cell.Pos].Count;
+    Finish:
+        int finishingEntropy = PopCountBlocks(_md.AllowedPerCellFlat, aBase, _md.Blocks);
 
-        var currentPatterns = _cellPositionAvailablePatternIDs[cell.Pos];
-        var allowedPatternIDs = new HashSet<int>(currentPatterns);
-
-        foreach (var dir in DirectionExtensions.Cardinal)
-        {
-            var vec = dir.ToGridVector();
-            var neighbourPos = vec + cell.Pos;
-
-            if (!_positionsToCells.TryGetValue(neighbourPos, out var neighbour)) continue;
-
-            if (neighbour.Collapsed) HandleCollapsedNeighbour(dir, neighbour, allowedPatternIDs);
-            else HandleUncollapsedNeighbour(dir, neighbour, allowedPatternIDs);
-        }
-
-        _cellPositionAvailablePatternIDs[cell.Pos] = allowedPatternIDs;
-
-        var finishingEntropy = _cellPositionAvailablePatternIDs[cell.Pos].Count;
-
-        Debug.Log($"check for ${cell.Pos}");
-        Debug.Log($"starting entropy: {startingEntropy}, finishing entropy: {finishingEntropy}");
-
-        // update entropy buckets...
-
-        _entropyToPositions[startingEntropy].Remove(cell.Pos);
-
+        if (startingEntropy > 0)
+            _entropyToPositions[startingEntropy].Remove(cell.Pos);
         if (finishingEntropy > 0)
             _entropyToPositions[finishingEntropy].Add(cell.Pos);
 
         return new EntropyResult(startingEntropy, finishingEntropy);
+
     }
+
 }
