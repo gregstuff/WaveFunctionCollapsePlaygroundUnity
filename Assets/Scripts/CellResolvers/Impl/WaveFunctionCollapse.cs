@@ -1,13 +1,18 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
-using UnityEngine.Tilemaps;
 
 public class WaveFunctionCollapse : TilemapResolver
 {
     private ConstraintModelSO _constraintModel;
     private Action<CollapseUpdate> _tileBaseChangedCallback;
+
+    static readonly ProfilerMarker WFC_Collapse = new ProfilerMarker("WFC.CollapseCell");
+    static readonly ProfilerMarker WFC_Enqueue = new ProfilerMarker("WFC.EnqueueNeighbours");
+    static readonly ProfilerMarker WFC_Reduce = new ProfilerMarker("WFC.ReduceByNeighbors");
+    static readonly ProfilerMarker WFC_GetNext = new ProfilerMarker("WFC.GetNext");
 
     public override void ResolveTilemap(
         ConstraintModelSO constraintModel,
@@ -17,38 +22,50 @@ public class WaveFunctionCollapse : TilemapResolver
         _constraintModel = constraintModel;
         _tileBaseChangedCallback = TileBaseChangedCallback;
         #endregion
-
         StartCoroutine("TilemapResolutionRoutine");
     }
 
     private IEnumerator TilemapResolutionRoutine()
     {
+        var start = DateTime.Now;
         Queue<Cell> candidates = new();
         while (true)
         {
+            Cell target;
             candidates.Clear();
 
-            Cell target = _constraintModel.GetNext();
+            using (WFC_GetNext.Auto())
+            {
+                target = _constraintModel.GetNext();
+            }
 
             if (target == null)
             {
                 // no valid target - wfc has finished
+                Debug.Log($"Finished! It's done my friends it took {(DateTime.Now - start).Seconds} seconds");
                 yield break;
             }
 
-            CollapseCell(target);
+            using (WFC_Collapse.Auto())
+            {
+                CollapseCell(target);
+            }
 
-            _constraintModel.EnqueueNeighbours(target, candidates);
+            using (WFC_Enqueue.Auto())
+            {
+                _constraintModel.EnqueueNeighbours(target, candidates);
+            }
 
             while (candidates.Count > 0)
             {
                 var cand = candidates.Dequeue();
                 cand.InQueue = false;
+                EntropyResult entropy;
 
-                var entropy = _constraintModel.ReduceByNeighbors(cand);
-
-
-                //Debug.Log($"coinsider {cand.Pos}");
+                using (WFC_Reduce.Auto())
+                {
+                    entropy = _constraintModel.ReduceByNeighbors(cand);
+                }
 
                 if (entropy.NoEntropy())
                 {
@@ -72,9 +89,11 @@ public class WaveFunctionCollapse : TilemapResolver
                 }
 
                 //yield return null;
+
             }
 
             yield return null;
+
         }
     }
 
@@ -95,7 +114,6 @@ public class WaveFunctionCollapse : TilemapResolver
     {
         var collapseUpdate = _constraintModel.CollapseCell(c);
         _tileBaseChangedCallback?.Invoke(collapseUpdate);
-
     }
 
 }

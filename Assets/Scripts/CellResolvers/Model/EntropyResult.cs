@@ -1,24 +1,11 @@
 
-public class EntropyResult
+using System.Runtime.CompilerServices;
+
+public readonly struct EntropyResult
 {
-
-    public int OldEntropy { get; }
-    public int NewEntropy { get; }
-
-    public EntropyResult(int oldEntropy, int newEntropy)
-    {
-        OldEntropy = oldEntropy;
-        NewEntropy = newEntropy;
-    }
-
-    public bool HasDiff()
-    {
-        return OldEntropy != NewEntropy;
-    }
-
-    public bool NoEntropy()
-    {
-        return NewEntropy == 0;
-    }
-
+    public readonly int OldEntropy;
+    public readonly int NewEntropy;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)] public bool HasDiff() => OldEntropy != NewEntropy;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)] public bool NoEntropy() => NewEntropy == 0;
+    public EntropyResult(int oldE, int newE) { OldEntropy = oldE; NewEntropy = newE; }
 }

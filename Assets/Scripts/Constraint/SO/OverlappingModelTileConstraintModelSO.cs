@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Unity.Profiling;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "ProcGen/WFC/Overlap Model")]
@@ -30,6 +31,24 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
     private Dictionary<int, int> _idToDense;
 
     private PatternData[] _denseToPattern;
+
+    static readonly ProfilerMarker WFC_Reduce_Singleton = new ProfilerMarker("WFC.Reduce.SingletonPath");
+    static readonly ProfilerMarker WFC_Reduce_Union = new ProfilerMarker("WFC.Reduce.UnionPath");
+    static readonly ProfilerMarker WFC_Reduce_Popcount = new ProfilerMarker("WFC.Reduce.PopCount");
+
+    private static readonly byte[] _TZC_BYTE = BuildTzcByte();
+    private static byte[] BuildTzcByte()
+    {
+        var lut = new byte[256];
+        for (int i = 0; i < 256; i++)
+        {
+            byte v = (byte)i, n = 0;
+            if (v == 0) { lut[i] = 8; continue; }
+            while ((v & 1) == 0) { v >>= 1; n++; }
+            lut[i] = n;
+        }
+        return lut;
+    }
 
     public OverlappingModelTileModelSO()
     {
@@ -261,10 +280,14 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         for (int b = 0; b < _md.Blocks; ++b)
         {
             ulong v = _md.AllowedPerCellFlat[baseIdx + b];
+            if (b == _md.Blocks - 1) v &= _md.TailMask;
+
             while (v != 0)
             {
                 int bit = FastBits.TrailingZeroCount(v);
                 int p = (b << 6) + bit;
+                if ((uint)p >= (uint)_md.P) break;
+
                 totalWeight += _md.PatternsByDensity[p].weight;
                 v &= v - 1;
             }
@@ -280,10 +303,13 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         for (int b = 0; b < _md.Blocks && selected == null; ++b)
         {
             ulong v = _md.AllowedPerCellFlat[baseIdx + b];
+            if (b == _md.Blocks - 1) v &= _md.TailMask;   // <<< mask last block
             while (v != 0)
             {
                 int bit = FastBits.TrailingZeroCount(v);
                 int p = (b << 6) + bit;
+                if ((uint)p >= (uint)_md.P) break;        // <<< defensive
+
                 var pd = _md.PatternsByDensity[p];
                 acc += pd.weight;
                 if (acc >= r)
@@ -294,6 +320,9 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
                 v &= v - 1;
             }
         }
+
+        if (selected == null)
+            throw new InvalidOperationException("CollapseCell failed to select a pattern (tail-mask issue?)");
 
         for (int b = 0; b < _md.Blocks; ++b) _md.AllowedPerCellFlat[baseIdx + b] = 0UL;
         int selDense = _idToDense[selected.patternId];
@@ -337,17 +366,22 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
     {
         for (int i = 2; i <= _md.P; ++i)
         {
-            if (_entropyToPositions[i].Count == 0) continue;
+            var set = _entropyToPositions[i];
+            if (set.Count == 0) continue;
 
-            foreach (var pos in _entropyToPositions[i])
+            int skip = _random.Next(set.Count);
+            foreach (var pos in set)
             {
-                var c = _positionsToCells[pos];
-                if (!c.Collapsed) return c;
+                if (skip-- == 0)
+                {
+                    var c = _positionsToCells[pos];
+                    if (!c.Collapsed) return c;
+                }
             }
         }
-
         return null;
     }
+
 
     public override EntropyResult ReduceByNeighbors(Cell cell)
     {
@@ -394,7 +428,10 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         int x = cell.Pos.x, y = cell.Pos.y;
         int idx = _gi.Idx(x, y);
         int aBase = BaseOf(idx);
-        int startingEntropy = PopCountBlocks(_md.AllowedPerCellFlat, aBase, _md.Blocks);
+        int startingEntropy = 0;
+
+        using (WFC_Reduce_Popcount.Auto())
+            startingEntropy = PopCountBlocks(_md.AllowedPerCellFlat, aBase, _md.Blocks);
 
         for (int d = 0; d < 4; ++d)
         {
@@ -415,37 +452,62 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
             if (TrySingleton(_md.AllowedPerCellFlat, nBase, _md.Blocks, out int nPat))
             {
-                var row = _md.Compat[od][nPat];
-                for (int b = 0; b < _md.Blocks; ++b)
-                    _md.AllowedPerCellFlat[aBase + b] &= row[b];
+                using (WFC_Reduce_Singleton.Auto())
+                {
+                    var row = _md.Compat[od][nPat];
+                    for (int b = 0; b < _md.Blocks; ++b)
+                        _md.AllowedPerCellFlat[aBase + b] &= row[b];
 
-                _md.AllowedPerCellFlat[aBase + (_md.Blocks - 1)] &= _md.TailMask;
+                    _md.AllowedPerCellFlat[aBase + (_md.Blocks - 1)] &= _md.TailMask;
 
-                bool zeroNow = true;
+                    bool zeroNow = true;
 
-                for (int b = 0; b < _md.Blocks; ++b)
-                    if (_md.AllowedPerCellFlat[aBase + b] != 0) { zeroNow = false; break; }
-                if (zeroNow) goto Finish;
+                    for (int b = 0; b < _md.Blocks; ++b)
+                        if (_md.AllowedPerCellFlat[aBase + b] != 0) { zeroNow = false; break; }
+                    if (zeroNow) goto Finish;
 
-                continue;
+                    continue;
+                }
             }
 
             for (int b = 0; b < _md.Blocks; ++b) _tmpUnion[b] = 0UL;
 
             for (int b = 0; b < _md.Blocks; ++b)
             {
-                ulong v = _md.AllowedPerCellFlat[nBase + b];
-                while (v != 0)
+                ulong word = _md.AllowedPerCellFlat[nBase + b];
+                if (b == _md.Blocks - 1) word &= _md.TailMask;
+
+                for (int by = 0; by < 8; ++by)
                 {
-                    int bit = FastBits.TrailingZeroCount(v);
-                    int p = (b << 6) + bit;
-                    var row = _md.Compat[od][p];
-                    for (int ub = 0; ub < _md.Blocks; ++ub)
-                        _tmpUnion[ub] |= row[ub];
-                    v &= v - 1;
+                    byte chunk = (byte)(word >> (by * 8));
+                    if (chunk == 0) continue;
+
+                    while (chunk != 0)
+                    {
+                        int bitInByte = _TZC_BYTE[chunk];
+                        int p = (b << 6) + (by * 8 + bitInByte);
+                        if ((uint)p < (uint)_md.P)
+                        {
+                            var row = _md.Compat[od][p];          // ✅ row-per-pattern
+                            for (int ub = 0; ub < _md.Blocks; ++ub)
+                                _tmpUnion[ub] |= row[ub];
+                        }
+                        chunk = (byte)(chunk & (chunk - 1));
+
+                        // early-out
+                        bool unionCoversAllowed = true;
+                        for (int ub = 0; ub < _md.Blocks; ++ub)
+                        {
+                            ulong allowedBlock = _md.AllowedPerCellFlat[aBase + ub];
+                            if ((allowedBlock & ~_tmpUnion[ub]) != 0UL) { unionCoversAllowed = false; break; }
+                        }
+                        if (unionCoversAllowed) goto ApplyAndMask;
+                    }
                 }
             }
 
+
+        ApplyAndMask:
             for (int b = 0; b < _md.Blocks; ++b)
                 _md.AllowedPerCellFlat[aBase + b] &= _tmpUnion[b];
 

@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Tilemaps;
 
 public abstract class TilemapResolver : MonoBehaviour
 {
