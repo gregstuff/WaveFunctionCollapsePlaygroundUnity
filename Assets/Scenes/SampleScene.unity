@@ -508,9 +508,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tilemapResolver: {fileID: 633793561}
-  constraintModel: {fileID: 11400000, guid: efa6959e59ffb3d4ead9135edd917fda, type: 2}
+  constraintModel: {fileID: 11400000, guid: 5c94df9019a6adb49b10590ae3e6711c, type: 2}
   tileMap: {fileID: 1368775131}
-  dimensions: {x: 30, y: 30}
+  dimensions: {x: 40, y: 40}
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
