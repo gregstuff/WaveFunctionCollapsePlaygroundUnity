@@ -27,75 +27,53 @@ public class WaveFunctionCollapse : TilemapResolver
 
     private IEnumerator TilemapResolutionRoutine()
     {
-        var start = DateTime.Now;
         Queue<Cell> candidates = new();
+
+        const float maxMsPerFrame = 2.5f;  // tune this
+        const int opsChunk = 64;   // yield every N ops to reduce hitching
+
         while (true)
         {
-            Cell target;
-            candidates.Clear();
+            var frameDeadline = Time.realtimeSinceStartup + maxMsPerFrame * 0.001f;
 
-            using (WFC_GetNext.Auto())
-            {
-                target = _constraintModel.GetNext();
-            }
+            // pick next and collapse (unchanged)
+            var target = _constraintModel.GetNext();
+            if (target == null) yield break;
+            CollapseCell(target);
+            _constraintModel.EnqueueNeighbours(target, candidates);
 
-            if (target == null)
-            {
-                // no valid target - wfc has finished
-                Debug.Log($"Finished! It's done my friends it took {(DateTime.Now - start).Seconds} seconds");
-                yield break;
-            }
-
-            using (WFC_Collapse.Auto())
-            {
-                CollapseCell(target);
-            }
-
-            using (WFC_Enqueue.Auto())
-            {
-                _constraintModel.EnqueueNeighbours(target, candidates);
-            }
-
+            int ops = 0;
             while (candidates.Count > 0)
             {
                 var cand = candidates.Dequeue();
                 cand.InQueue = false;
-                EntropyResult entropy;
 
-                using (WFC_Reduce.Auto())
-                {
-                    entropy = _constraintModel.ReduceByNeighbors(cand);
-                }
-
-                if (entropy.NoEntropy())
-                {
-                    HandleContradiction($"WFC contradiction.", cand);
-                    continue;
-                }
+                var entropy = _constraintModel.ReduceByNeighbors(cand);
+                if (entropy.NoEntropy()) { HandleContradiction("WFC contradiction.", cand); continue; }
 
                 if (entropy.NewEntropy == 1 && !cand.Collapsed)
                 {
                     CollapseCell(cand);
                     _constraintModel.EnqueueNeighbours(cand, candidates);
-                    yield return new WaitForSeconds(0.2f);
-                    continue;
                 }
-
-                // if the entropy has changed, then enqueue neighbours to see if their entropy will change as well
-                // entropy oldEntropy propagate until entropy is 0
-                if (entropy.HasDiff())
+                else if (entropy.HasDiff())
                 {
                     _constraintModel.EnqueueNeighbours(cand, candidates);
                 }
 
-                //yield return null;
-
+                // yield periodically to bound hitches
+                if ((++ops % opsChunk == 0) && Time.realtimeSinceStartup >= frameDeadline)
+                {
+                    yield return null;
+                    frameDeadline = Time.realtimeSinceStartup + maxMsPerFrame * 0.001f;
+                }
             }
 
+            // always yield once per outer step
             yield return null;
-
         }
     }
+
 
     private void HandleContradiction(string contradiction, Cell c)
     {
