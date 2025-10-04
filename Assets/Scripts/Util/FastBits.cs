@@ -2,11 +2,9 @@ using System.Runtime.CompilerServices;
 
 static class FastBits
 {
-    // Optional: you can keep your current PopCount if you prefer.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int PopCount(ulong x)
     {
-        // SWAR (branch-free) popcount; safe under IL2CPP/Mono.
         x -= (x >> 1) & 0x5555555555555555UL;
         x = (x & 0x3333333333333333UL) + ((x >> 2) & 0x3333333333333333UL);
         x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0FUL;
@@ -14,7 +12,6 @@ static class FastBits
         return (int)(x & 0x7F);
     }
 
-    // 0..255 -> index of least-significant 1-bit; 8 means "no bits set".
     private static readonly byte[] _tzcByte = BuildTzcByte();
     private static byte[] BuildTzcByte()
     {
@@ -29,7 +26,6 @@ static class FastBits
         return lut;
     }
 
-    // Fast, portable trailing-zero count via byte scanning + LUT.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int TrailingZeroCount(ulong x)
     {
@@ -44,7 +40,7 @@ static class FastBits
             return 24 + _tzcByte[(lo >> 24) & 0xFF];
         }
         uint hi = (uint)(x >> 32);
-        // hi is nonzero here
+
         int m = _tzcByte[hi & 0xFF]; if (m != 8) return 32 + m;
         m = _tzcByte[(hi >> 8) & 0xFF]; if (m != 8) return 40 + m;
         m = _tzcByte[(hi >> 16) & 0xFF]; if (m != 8) return 48 + m;

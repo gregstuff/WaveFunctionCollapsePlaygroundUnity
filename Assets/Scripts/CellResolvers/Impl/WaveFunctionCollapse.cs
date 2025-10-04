@@ -1,18 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Profiling;
 using UnityEngine;
 
 public class WaveFunctionCollapse : TilemapResolver
 {
     private ConstraintModelSO _constraintModel;
     private Action<CollapseUpdate> _tileBaseChangedCallback;
-
-    static readonly ProfilerMarker WFC_Collapse = new ProfilerMarker("WFC.CollapseCell");
-    static readonly ProfilerMarker WFC_Enqueue = new ProfilerMarker("WFC.EnqueueNeighbours");
-    static readonly ProfilerMarker WFC_Reduce = new ProfilerMarker("WFC.ReduceByNeighbors");
-    static readonly ProfilerMarker WFC_GetNext = new ProfilerMarker("WFC.GetNext");
 
     public override void ResolveTilemap(
         ConstraintModelSO constraintModel,
@@ -29,14 +23,13 @@ public class WaveFunctionCollapse : TilemapResolver
     {
         Queue<Cell> candidates = new();
 
-        const float maxMsPerFrame = 2.5f;  // tune this
-        const int opsChunk = 64;   // yield every N ops to reduce hitching
+        const float maxMsPerFrame = 2.5f;
+        const int opsChunk = 64;
 
         while (true)
         {
             var frameDeadline = Time.realtimeSinceStartup + maxMsPerFrame * 0.001f;
 
-            // pick next and collapse (unchanged)
             var target = _constraintModel.GetNext();
             if (target == null) yield break;
             CollapseCell(target);
@@ -61,7 +54,7 @@ public class WaveFunctionCollapse : TilemapResolver
                     _constraintModel.EnqueueNeighbours(cand, candidates);
                 }
 
-                // yield periodically to bound hitches
+                // yield only after we have done substantial work AND enough time has passed
                 if ((++ops % opsChunk == 0) && Time.realtimeSinceStartup >= frameDeadline)
                 {
                     yield return null;
@@ -69,7 +62,6 @@ public class WaveFunctionCollapse : TilemapResolver
                 }
             }
 
-            // always yield once per outer step
             yield return null;
         }
     }

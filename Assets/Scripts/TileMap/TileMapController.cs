@@ -31,8 +31,7 @@ public class TileMapController : MonoBehaviour
 
     private void OnCellChanged(CollapseUpdate u)
     {
-        // SNAPSHOT: copy positions+tiles now, while u’s data is still valid
-        var r = u.OutputRect; // absolute rect
+        var r = u.OutputRect;
         int w = r.width, h = r.height, count = w * h;
 
         var positions = new Vector3Int[count];
@@ -44,11 +43,7 @@ public class TileMapController : MonoBehaviour
             {
                 positions[i] = new Vector3Int(x, y, 0);
 
-                // If TileAt expects ABSOLUTE coords (your current working code), keep this:
                 tiles[i] = u.TileAt(new Vector2Int(x, y));
-
-                // If TileAt expects LOCAL coords inside the rect, use this instead:
-                // tiles[i] = u.TileAtLocal(x - r.xMin, y - r.yMin);
 
                 i++;
             }
@@ -63,9 +58,6 @@ public class TileMapController : MonoBehaviour
             while (_paintOps.Count > 0)
             {
                 var op = _paintOps.Dequeue();
-
-                // Fast path: apply the snapshot we created in OnCellChanged
-                // (You can switch to SetTilesBlock if you prefer blocks.)
                 for (int i = 0; i < op.Positions.Length; i++)
                     tileMap.SetTile(op.Positions[i], op.Tiles[i]);
             }

@@ -28,13 +28,8 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
     private ulong[] _tmpUnion;
 
-    private Dictionary<int, int> _idToDense;
-
-    private PatternData[] _denseToPattern;
-
-    static readonly ProfilerMarker WFC_Reduce_Singleton = new ProfilerMarker("WFC.Reduce.SingletonPath");
-    static readonly ProfilerMarker WFC_Reduce_Union = new ProfilerMarker("WFC.Reduce.UnionPath");
-    static readonly ProfilerMarker WFC_Reduce_Popcount = new ProfilerMarker("WFC.Reduce.PopCount");
+    private Dictionary<int, int> _patternIDToIndex;
+    private PatternData[] _indexToPattern;
 
     private static readonly byte[] _TZC_BYTE = BuildTzcByte();
     private static byte[] BuildTzcByte()
@@ -66,7 +61,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         public ulong[][][] Compat;
 
         public ulong[] AllowedPerCellFlat;
-        public PatternData[] PatternsByDensity;
+        public PatternData[] PatternsByIndex;
     }
 
     private sealed class GridIndex
@@ -107,9 +102,10 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
                     break;
             }
 
+            // 2 comparisons rather than 4
             if ((uint)x < (uint)_w && (uint)y < (uint)_h)
             {
-                nIdx = y * _w + x;
+                nIdx = Idx(x, y);
                 return true;
             }
             nIdx = -1;
@@ -184,21 +180,24 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         _entropyToPositions = new();
         _positionsToCells = new();
 
-        var filtered = (minPatternFrequency > 1)
-            ? patterns.Where(p => p.weight >= minPatternFrequency).ToList()
-            : patterns;
+        foreach (var p in patterns)
+        {
+            if (p.weight < minPatternFrequency) Debug.Log($"{p.patternId} was filtered out");
+        }
 
-        int P = filtered.Count;
+        var filtered = patterns.Where(p => p.weight > minPatternFrequency).ToList();
+
+        int P = patterns.Count;
 
         if (P == 0) throw new InvalidOperationException("No patterns available");
 
-        _idToDense = new();
-        _denseToPattern = new PatternData[P];
+        _patternIDToIndex = new();
+        _indexToPattern = new PatternData[P];
 
         for (int i = 0; i < P; ++i)
         {
-            _idToDense[filtered[i].patternId] = i;
-            _denseToPattern[i] = filtered[i];
+            _patternIDToIndex[patterns[i].patternId] = i;
+            _indexToPattern[i] = patterns[i];
         }
 
         Dir MapDir(Direction d) => d switch
@@ -215,7 +214,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         var compat = CompatBuilderMany.BuildCompatChunked(
             P,
             adjacencies,
-            id => _idToDense.TryGetValue(id, out var d) ? d : -1,
+            id => _patternIDToIndex.TryGetValue(id, out var d) ? d : -1,
             MapDir);
 
         int numCells = _width * _height;
@@ -237,7 +236,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
             TailMask = tailMask,
             Compat = compat,
             AllowedPerCellFlat = allowedFlat,
-            PatternsByDensity = _denseToPattern
+            PatternsByIndex = _indexToPattern
         };
 
         _gi = new GridIndex(_width, _height);
@@ -269,7 +268,6 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
      * Resolve selected pattern based on available patterns and weights for cell
      * 
      */
-
     public override CollapseUpdate CollapseCell(Cell cell)
     {
         int x = cell.Pos.x, y = cell.Pos.y;
@@ -288,7 +286,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
                 int p = (b << 6) + bit;
                 if ((uint)p >= (uint)_md.P) break;
 
-                totalWeight += _md.PatternsByDensity[p].weight;
+                totalWeight += _md.PatternsByIndex[p].weight;
                 v &= v - 1;
             }
         }
@@ -310,7 +308,7 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
                 int p = (b << 6) + bit;
                 if ((uint)p >= (uint)_md.P) break;        // <<< defensive
 
-                var pd = _md.PatternsByDensity[p];
+                var pd = _md.PatternsByIndex[p];
                 acc += pd.weight;
                 if (acc >= r)
                 {
@@ -325,9 +323,9 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
             throw new InvalidOperationException("CollapseCell failed to select a pattern (tail-mask issue?)");
 
         for (int b = 0; b < _md.Blocks; ++b) _md.AllowedPerCellFlat[baseIdx + b] = 0UL;
-        int selDense = _idToDense[selected.patternId];
-        int sb = selDense >> 6;
-        int so = selDense & 63;
+        int selIndex = _patternIDToIndex[selected.patternId];
+        int sb = selIndex >> 6;
+        int so = selIndex & 63;
         _md.AllowedPerCellFlat[baseIdx + sb] = (1UL << so);
 
         cell.Collapse();
@@ -430,8 +428,8 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
         int aBase = BaseOf(idx);
         int startingEntropy = 0;
 
-        using (WFC_Reduce_Popcount.Auto())
-            startingEntropy = PopCountBlocks(_md.AllowedPerCellFlat, aBase, _md.Blocks);
+
+        startingEntropy = PopCountBlocks(_md.AllowedPerCellFlat, aBase, _md.Blocks);
 
         for (int d = 0; d < 4; ++d)
         {
@@ -452,22 +450,19 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
 
             if (TrySingleton(_md.AllowedPerCellFlat, nBase, _md.Blocks, out int nPat))
             {
-                using (WFC_Reduce_Singleton.Auto())
-                {
-                    var row = _md.Compat[od][nPat];
-                    for (int b = 0; b < _md.Blocks; ++b)
-                        _md.AllowedPerCellFlat[aBase + b] &= row[b];
+                var row = _md.Compat[od][nPat];
+                for (int b = 0; b < _md.Blocks; ++b)
+                    _md.AllowedPerCellFlat[aBase + b] &= row[b];
 
-                    _md.AllowedPerCellFlat[aBase + (_md.Blocks - 1)] &= _md.TailMask;
+                _md.AllowedPerCellFlat[aBase + (_md.Blocks - 1)] &= _md.TailMask;
 
-                    bool zeroNow = true;
+                bool zeroNow = true;
 
-                    for (int b = 0; b < _md.Blocks; ++b)
-                        if (_md.AllowedPerCellFlat[aBase + b] != 0) { zeroNow = false; break; }
-                    if (zeroNow) goto Finish;
+                for (int b = 0; b < _md.Blocks; ++b)
+                    if (_md.AllowedPerCellFlat[aBase + b] != 0) { zeroNow = false; break; }
+                if (zeroNow) goto Finish;
 
-                    continue;
-                }
+                continue;
             }
 
             for (int b = 0; b < _md.Blocks; ++b) _tmpUnion[b] = 0UL;
@@ -488,13 +483,12 @@ public class OverlappingModelTileModelSO : ConstraintModelSO
                         int p = (b << 6) + (by * 8 + bitInByte);
                         if ((uint)p < (uint)_md.P)
                         {
-                            var row = _md.Compat[od][p];          // ✅ row-per-pattern
+                            var row = _md.Compat[od][p];
                             for (int ub = 0; ub < _md.Blocks; ++ub)
                                 _tmpUnion[ub] |= row[ub];
                         }
                         chunk = (byte)(chunk & (chunk - 1));
 
-                        // early-out
                         bool unionCoversAllowed = true;
                         for (int ub = 0; ub < _md.Blocks; ++ub)
                         {
